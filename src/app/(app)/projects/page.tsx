@@ -24,6 +24,12 @@ export default function ProjectsPage() {
       setEdit(null); reload();
     } catch (e) { setErr((e as Error).message); }
   }
+  async function remove() {
+    if (!edit?.id || !confirm(`Delete project "${edit.name}"? Its industries, contributor assignments and rates are removed too. This cannot be undone.`)) return;
+    setErr("");
+    try { await api(`/api/projects/${edit.id}`, { method: "DELETE" }); setEdit(null); reload(); }
+    catch (e) { setErr((e as Error).message); }
+  }
   const tone = (s: string) => (s === "ACTIVE" ? "green" : s === "PAUSED" ? "amber" : "gray") as "green";
 
   return (
@@ -56,11 +62,14 @@ export default function ProjectsPage() {
             <Field label="Description"><Textarea rows={2} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
             <Field label="Notes"><Textarea rows={2} value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} /></Field>
             {err && <p className="text-sm text-red-700">{err}</p>}
-            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save project</Button></div>
+            <div className="flex items-center justify-between gap-2">
+              {edit.id ? <Button type="button" variant="danger" onClick={remove}>Delete</Button> : <span />}
+              <div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save project</Button></div>
+            </div>
           </form>
         )}
       </Modal>
-      <Card className="mt-6 text-sm text-muted">Project IDs are generated automatically. Projects are never deleted; set a project to Completed to retire it.</Card>
+      <Card className="mt-6 text-sm text-muted">Project IDs are generated automatically. A project can be deleted only if it has no recorded hours, QC or payments; otherwise set it to Completed to retire it.</Card>
     </div>
   );
 }

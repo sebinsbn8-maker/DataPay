@@ -63,6 +63,51 @@ export async function updateIndustry(u: U, id: string, input: Record<string, unk
   });
 }
 
+/* ---------------- delete (admin only; only when no money/hours history exists) ---------------- */
+type Tx = Parameters<Parameters<Awaited<ReturnType<typeof getDb>>["transaction"]>[0]>[0];
+async function assertNoHistory(tx: Tx, col: "projectId" | "industryId", id: string, what: string) {
+  const has = async (table: typeof s.dailyWorkRecords | typeof s.acceptanceRecords | typeof s.industryPaymentStatements) => {
+    const [r] = await tx.select({ id: table.id }).from(table).where(eq(table[col], id)).limit(1);
+    return !!r;
+  };
+  if ((await has(s.dailyWorkRecords)) || (await has(s.acceptanceRecords)) || (await has(s.industryPaymentStatements)))
+    throw new HttpError(409, `This ${what} has recorded hours, QC or payments, so it can't be deleted. Set its status to ${what === "project" ? "Completed" : "Archived"} instead.`);
+}
+async function removeIndustries(tx: Tx, industryIds: string[]) {
+  if (!industryIds.length) return;
+  const asg = await tx.select({ id: s.projectContributors.id }).from(s.projectContributors).where(inArray(s.projectContributors.industryId, industryIds));
+  const asgIds = asg.map((a) => a.id);
+  await tx.delete(s.paymentRates).where(asgIds.length ? or(inArray(s.paymentRates.industryId, industryIds), inArray(s.paymentRates.assignmentId, asgIds)) : inArray(s.paymentRates.industryId, industryIds));
+  await tx.delete(s.projectContributors).where(inArray(s.projectContributors.industryId, industryIds));
+  await tx.delete(s.industries).where(inArray(s.industries.id, industryIds));
+}
+export async function deleteIndustry(u: U, id: string) {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(s.industries).where(eq(s.industries.id, id));
+    if (!before) throw new HttpError(404, "Industry not found");
+    await assertNoHistory(tx, "industryId", id, "industry");
+    await removeIndustries(tx, [id]);
+    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "industry", entityId: id, before: strip(before) });
+    return { deleted: true };
+  });
+}
+export async function deleteProject(u: U, id: string) {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(s.projects).where(eq(s.projects.id, id));
+    if (!before) throw new HttpError(404, "Project not found");
+    await assertNoHistory(tx, "projectId", id, "project");
+    const inds = await tx.select({ id: s.industries.id }).from(s.industries).where(eq(s.industries.projectId, id));
+    await removeIndustries(tx, inds.map((i) => i.id));
+    await tx.delete(s.paymentRates).where(eq(s.paymentRates.projectId, id));
+    await tx.delete(s.projectContributors).where(eq(s.projectContributors.projectId, id));
+    await tx.delete(s.projects).where(eq(s.projects.id, id));
+    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "project", entityId: id, before: strip(before), note: `${inds.length} industries removed` });
+    return { deleted: true };
+  });
+}
+
 /* ---------------- contributors & assignments ---------------- */
 export async function listContributors(u: U) {
   const db = await getDb();

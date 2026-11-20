@@ -3,7 +3,7 @@ process.env.DATABASE_URL = "pglite://memory";
 
 import { runMigrations, getDb, schema as s } from "../src/db";
 import { ensureAdmin } from "../src/server/bootstrap";
-import { createProject, createIndustry, createContributor, createAssignment, createRate } from "../src/server/masterdata";
+import { createProject, createIndustry, createContributor, createAssignment, createRate, deleteIndustry, deleteProject } from "../src/server/masterdata";
 import { saveEntries, entrySheet } from "../src/server/hours";
 import { setAcceptance, allocateIndustry, listQc } from "../src/server/qc";
 import { previewStatement, createStatement, approveStatement, recordPayment, addAdjustment, voidStatement, industryOverview } from "../src/server/payments";
@@ -185,5 +185,24 @@ describe("audit trail", () => {
     const logs = await db.select().from(s.auditLogs);
     const actions = new Set(logs.map((l) => l.action));
     for (const a of ["QC_CHANGE", "APPROVE", "PAYMENT", "RATE_CHANGE", "ALLOCATE", "CREATE"]) expect(actions.has(a as never)).toBe(true);
+  });
+});
+
+describe("deleting projects and industries", () => {
+  it("deletes an unused project with its industries, assignments and rates", async () => {
+    const p = await createProject(admin, { name: "Temp", clientName: "X", status: "ACTIVE" });
+    const i = await createIndustry(admin, { projectId: p.id, name: "Temp ind", status: "ACTIVE" });
+    const c = await createContributor(admin, { fullName: "Temp C", email: "tmp@x.io", status: "ACTIVE" });
+    await createAssignment(admin, { contributorId: c.id, projectId: p.id, industryId: i.id, dailyTargetHours: 8, weeklyTargetHours: 40, monthlyTargetHours: 160 });
+    await createRate(admin, { scope: "INDUSTRY", industryId: i.id, hourlyRate: 100, effectiveFrom: "2026-01-01" });
+    await createRate(admin, { scope: "PROJECT", projectId: p.id, hourlyRate: 90, effectiveFrom: "2026-01-01" });
+    await deleteProject(admin, p.id);
+    const db = await getDb();
+    expect((await db.select().from(s.projects)).some((x) => x.id === p.id)).toBe(false);
+    expect((await db.select().from(s.industries)).some((x) => x.id === i.id)).toBe(false);
+  });
+  it("refuses to delete a project or industry that has hours or payments", async () => {
+    await expect(deleteProject(admin, projectId)).rejects.toMatchObject({ status: 409 });
+    await expect(deleteIndustry(admin, mfg)).rejects.toMatchObject({ status: 409 });
   });
 });

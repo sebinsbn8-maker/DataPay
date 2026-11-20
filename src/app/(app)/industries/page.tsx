@@ -26,7 +26,13 @@ export default function IndustriesPage() {
 
   async function save() {
     if (!edit) return; setErr("");
-    try { const { id, ...b } = edit; await api(id ? `/api/industries/${id}` : "/api/industries", { method: id ? "PATCH" : "POST", json: b }); setEdit(null); reload(); }
+    try { const { id, ...b } = edit; if (!b.projectId) b.projectId = projects[0]?.id ?? ""; await api(id ? `/api/industries/${id}` : "/api/industries", { method: id ? "PATCH" : "POST", json: b }); setEdit(null); reload(); }
+    catch (e) { setErr((e as Error).message); }
+  }
+  async function remove() {
+    if (!edit?.id || !confirm(`Delete industry "${edit.name}"? This also removes its contributor assignments and rates. This cannot be undone.`)) return;
+    setErr("");
+    try { await api(`/api/industries/${edit.id}`, { method: "DELETE" }); setEdit(null); reload(); }
     catch (e) { setErr((e as Error).message); }
   }
   async function saveRate() {
@@ -54,13 +60,16 @@ export default function IndustriesPage() {
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Edit industry" : "New industry"}>
         {edit && (
           <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); save(); }}>
-            <Field label="Project"><Select required disabled={!!edit.id} value={edit.projectId} onChange={(e) => setEdit({ ...edit, projectId: e.target.value })}>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
+            <Field label="Project"><Select required disabled={!!edit.id} value={edit.projectId || projects[0]?.id || ""} onChange={(e) => setEdit({ ...edit, projectId: e.target.value })}>{projects.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}</Select></Field>
             <Field label="Industry name"><Input required value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
             <Field label="Manager"><Select value={edit.managerId} onChange={(e) => setEdit({ ...edit, managerId: e.target.value })}><option value="">— none —</option>{(users.data ?? []).filter((u) => u.role === "MANAGER").map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
             <Field label="Status"><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></Select></Field>
             <Field label="Description"><Textarea rows={2} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
             {err && <p className="text-sm text-red-700">{err}</p>}
-            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save</Button></div>
+            <div className="flex items-center justify-between gap-2">
+              {edit.id ? <Button type="button" variant="danger" onClick={remove}>Delete</Button> : <span />}
+              <div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save</Button></div>
+            </div>
           </form>
         )}
       </Modal>
