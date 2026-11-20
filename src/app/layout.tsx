@@ -5,7 +5,7 @@ import { Providers } from "@/components/Providers";
 export const metadata: Metadata = {
   title: "DataPay",
   description: "Every hour counts. Every contribution matters.",
-  icons: { icon: "/logo.svg" },
+  icons: { icon: "/favicon-icon.png" },
 };
 export const viewport: Viewport = { width: "device-width", initialScale: 1, themeColor: "#11112f" };
 

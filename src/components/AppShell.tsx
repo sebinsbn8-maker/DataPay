@@ -7,7 +7,7 @@ import {
   LayoutDashboard, FolderKanban, Factory, Users, Clock, BadgeCheck, TrendingUp, Wallet,
   FileBarChart, Shield, Settings, User, Menu, PanelLeftClose, PanelLeftOpen, Bell, LogOut, Search, X,
 } from "lucide-react";
-import { Logo } from "./Logo";
+import { Logo, LogoMark } from "./Logo";
 import { NAV, type Role } from "@/lib/permissions";
 import { cx } from "./ui";
 
@@ -46,7 +46,7 @@ export function AppShell({ user, children }: { user: { name: string; email: stri
       {/* desktop sidebar */}
       <aside className={cx("fixed inset-y-0 left-0 z-30 hidden flex-col bg-navy transition-all lg:flex", collapsed ? "w-[72px]" : "w-64")}>
         <div className="flex h-16 items-center justify-between px-4">
-          {collapsed ? <img src="/logo.svg" width={32} height={32} alt="DataPay" /> : <Logo />}
+          {collapsed ? <LogoMark size={34} /> : <Logo />}
         </div>
         {nav}
         <button onClick={() => setCollapsed(!collapsed)} aria-label="Toggle sidebar"
