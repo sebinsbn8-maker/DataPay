@@ -17,8 +17,8 @@ export const GET = (req: Request) => handle(async () => {
 
 const entry = z.object({
   assignmentId: z.string().uuid(),
-  sessions: z.array(z.object({ startTime: z.string().nullable().optional(), endTime: z.string().nullable().optional(), hours: z.coerce.number().min(0).max(24), note: z.string().nullable().optional() })).max(10),
-  submittedHours: z.coerce.number().min(0).max(24),
+  sessions: z.array(z.object({ startTime: z.string().nullable().optional(), endTime: z.string().nullable().optional(), hours: z.coerce.number().min(0).max(1000), note: z.string().nullable().optional() })).max(10),
+  submittedHours: z.coerce.number().min(0).max(1000),
   remarks: z.string().nullable().optional(),
 });
 export const POST = (req: Request) => handle(async () => {

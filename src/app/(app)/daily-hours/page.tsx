@@ -93,7 +93,7 @@ export default function DailyHoursPage() {
                         <div className="mt-1 flex flex-wrap items-center gap-2">
                           {d.sessions.map((s, i) => (
                             <span key={i} className="flex items-center gap-1">
-                              <Input disabled={r.locked} className="w-24" type="number" inputMode="decimal" min="0" max="24" step="0.25" placeholder="0" value={s} onChange={(e) => set(r.assignmentId, { sessions: d.sessions.map((x, j) => (j === i ? e.target.value : x)) })} />
+                              <Input disabled={r.locked} className="w-24" type="number" inputMode="decimal" min="0" max="1000" step="0.25" placeholder="0" value={s} onChange={(e) => set(r.assignmentId, { sessions: d.sessions.map((x, j) => (j === i ? e.target.value : x)) })} />
                               {d.sessions.length > 1 && !r.locked && <button aria-label="Remove session" className="rounded p-2 text-muted hover:bg-slate-100" onClick={() => set(r.assignmentId, { sessions: d.sessions.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>}
                             </span>
                           ))}

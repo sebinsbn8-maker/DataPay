@@ -5,6 +5,9 @@ import { HttpError, assertIndustryAccess, managerScope } from "./guard";
 import { D, acceptedHours, rejectedHours, deriveQcStatus } from "@/lib/calc";
 import type { Role } from "@/lib/permissions";
 
+/** Upper sanity limit per contributor per day. Contributors can be teams/units, so this is well above 24. */
+export const MAX_DAILY_HOURS = 1000;
+
 type U = { id: string; role: Role };
 
 export type SessionInput = { startTime?: string | null; endTime?: string | null; hours: number; note?: string | null };
@@ -70,10 +73,10 @@ export async function saveEntries(u: U, date: string, entries: EntryInput[]) {
       if (asg.status !== "ACTIVE") throw new HttpError(400, "This contributor assignment is not active");
 
       const sessions = e.sessions.filter((x) => x.hours > 0);
-      for (const x of sessions) if (x.hours > 24) throw new HttpError(400, "A single session cannot exceed 24 hours");
+      for (const x of sessions) if (x.hours > MAX_DAILY_HOURS) throw new HttpError(400, `A single session cannot exceed ${MAX_DAILY_HOURS} hours`);
       const actual = sessions.reduce((sum, x) => sum.plus(D(x.hours)), D(0));
       const submitted = D(e.submittedHours);
-      if (actual.gt(24)) throw new HttpError(400, "Total hours for one day cannot exceed 24");
+      if (actual.gt(MAX_DAILY_HOURS)) throw new HttpError(400, `Total hours for one day cannot exceed ${MAX_DAILY_HOURS}`);
       if (submitted.lt(0)) throw new HttpError(400, "Submitted hours cannot be negative");
       if (submitted.gt(actual)) throw new HttpError(400, `Submitted hours (${submitted}) cannot exceed actual working hours (${actual})`);
 
