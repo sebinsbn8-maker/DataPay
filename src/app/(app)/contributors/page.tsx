@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api } from "@/components/ui";
 import { hrs, useApi, useLookups } from "@/components/hooks";
@@ -30,6 +30,12 @@ export default function ContributorsPage() {
     catch (e) { setErr((e as Error).message); }
   };
 
+  async function removeContributor(c: { id: string; fullName: string }) {
+    if (!confirm(`Delete contributor "${c.fullName}"? Their assignments and rates are removed, and any login for them is switched off. This cannot be undone.`)) return;
+    try { await api(`/api/contributors/${c.id}`, { method: "DELETE" }); setSel(null); reload(); }
+    catch (e) { alert((e as Error).message); }
+  }
+
   return (
     <div>
       <PageHeader title="Contributors" subtitle="Add contributors, assign them to industries, and manage targets."
@@ -43,6 +49,7 @@ export default function ContributorsPage() {
           { key: "assign", header: "Industries", render: (c) => c.assignments.filter((a) => a.status === "ACTIVE").map((a) => a.industryName).join(", ") || "—" },
           { key: "email", header: "Email", hideOnMobile: true },
           { key: "status", header: "Status", render: (c) => <Badge tone={c.status === "ACTIVE" ? "green" : "gray"}>{c.status.toLowerCase()}</Badge> },
+          ...(isAdmin ? [{ key: "del", header: "", render: (c: Con) => <button type="button" aria-label={`Delete ${c.fullName}`} title="Delete" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); removeContributor(c); }}><Trash2 size={16} /></button> }] : []),
         ]} />
 
       {/* detail */}
@@ -52,7 +59,8 @@ export default function ContributorsPage() {
             <div className="flex flex-wrap items-center justify-between gap-2 text-sm text-muted">
               <span>{sel.email}{sel.phone ? ` · ${sel.phone}` : ""}{sel.joiningDate ? ` · joined ${sel.joiningDate}` : ""}</span>
               {isAdmin && <span className="flex gap-2"><Button variant="outline" onClick={() => setEdit({ ...blank, ...sel, phone: sel.phone ?? "", joiningDate: sel.joiningDate ?? "", notes: sel.notes ?? "" })}>Edit</Button>
-                <Button variant="outline" onClick={() => run(() => api(`/api/contributors/${sel.id}`, { method: "PATCH", json: { status: sel.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" } }))}>{sel.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button></span>}
+                <Button variant="outline" onClick={() => run(() => api(`/api/contributors/${sel.id}`, { method: "PATCH", json: { status: sel.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" } }))}>{sel.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
+                <Button variant="danger" onClick={() => removeContributor(sel)}>Delete</Button></span>}
             </div>
             <section>
               <div className="mb-2 flex items-center justify-between"><h3 className="font-semibold">Assignments &amp; targets</h3>

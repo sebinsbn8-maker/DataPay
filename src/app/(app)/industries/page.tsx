@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api } from "@/components/ui";
 import { useApi, useLookups, type Industry } from "@/components/hooks";
@@ -29,12 +29,13 @@ export default function IndustriesPage() {
     try { const { id, ...b } = edit; if (!b.projectId) b.projectId = projects[0]?.id ?? ""; await api(id ? `/api/industries/${id}` : "/api/industries", { method: id ? "PATCH" : "POST", json: b }); setEdit(null); reload(); }
     catch (e) { setErr((e as Error).message); }
   }
-  async function remove() {
-    if (!edit?.id || !confirm(`Delete industry "${edit.name}"? This also removes its contributor assignments and rates. This cannot be undone.`)) return;
+  async function removeIndustry(i: { id: string; name: string }) {
+    if (!confirm(`Delete industry "${i.name}"? This also removes its contributor assignments and rates. This cannot be undone.`)) return;
     setErr("");
-    try { await api(`/api/industries/${edit.id}`, { method: "DELETE" }); setEdit(null); reload(); }
-    catch (e) { setErr((e as Error).message); }
+    try { await api(`/api/industries/${i.id}`, { method: "DELETE" }); setEdit(null); reload(); }
+    catch (e) { const m = (e as Error).message; setErr(m); alert(m); }
   }
+  const remove = () => edit?.id && removeIndustry({ id: edit.id, name: edit.name });
   async function saveRate() {
     if (!rate) return; setErr("");
     try {
@@ -55,6 +56,7 @@ export default function IndustriesPage() {
           { key: "project", header: "Project", sortValue: (i) => pname(i.projectId), render: (i) => pname(i.projectId) },
           ...(isAdmin ? [{ key: "rate", header: "Current rate", render: (i: Industry) => currentRate(i) }] : []),
           { key: "status", header: "Status", render: (i) => <Badge tone={i.status === "ACTIVE" ? "green" : "gray"}>{i.status.toLowerCase()}</Badge> },
+          ...(isAdmin ? [{ key: "del", header: "", render: (i: Industry) => <button type="button" aria-label={`Delete ${i.name}`} title="Delete" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); removeIndustry(i); }}><Trash2 size={16} /></button> }] : []),
         ]} />
 
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Edit industry" : "New industry"}>

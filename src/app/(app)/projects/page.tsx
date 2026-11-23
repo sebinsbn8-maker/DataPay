@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Badge, Button, Card, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api } from "@/components/ui";
 import { useApi, type Project } from "@/components/hooks";
@@ -24,12 +24,13 @@ export default function ProjectsPage() {
       setEdit(null); reload();
     } catch (e) { setErr((e as Error).message); }
   }
-  async function remove() {
-    if (!edit?.id || !confirm(`Delete project "${edit.name}"? Its industries, contributor assignments and rates are removed too. This cannot be undone.`)) return;
+  async function removeProject(p: { id: string; name: string }) {
+    if (!confirm(`Delete project "${p.name}"? Its industries, contributor assignments and rates are removed too. This cannot be undone.`)) return;
     setErr("");
-    try { await api(`/api/projects/${edit.id}`, { method: "DELETE" }); setEdit(null); reload(); }
-    catch (e) { setErr((e as Error).message); }
+    try { await api(`/api/projects/${p.id}`, { method: "DELETE" }); setEdit(null); reload(); }
+    catch (e) { const m = (e as Error).message; setErr(m); alert(m); }
   }
+  const remove = () => edit?.id && removeProject({ id: edit.id, name: edit.name });
   const tone = (s: string) => (s === "ACTIVE" ? "green" : s === "PAUSED" ? "amber" : "gray") as "green";
 
   return (
@@ -45,6 +46,7 @@ export default function ProjectsPage() {
           { key: "clientName", header: "Client", sortValue: (p) => p.clientName },
           { key: "dates", header: "Dates", render: (p) => `${p.startDate ?? "—"} → ${p.endDate ?? "—"}` },
           { key: "status", header: "Status", render: (p) => <Badge tone={tone(p.status)}>{p.status.toLowerCase()}</Badge> },
+          ...(isAdmin ? [{ key: "del", header: "", render: (p: Project) => <button type="button" aria-label={`Delete ${p.name}`} title="Delete" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); removeProject(p); }}><Trash2 size={16} /></button> }] : []),
         ]} />
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Edit project" : "New project"}>
         {edit && (

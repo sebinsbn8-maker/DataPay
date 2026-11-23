@@ -3,7 +3,7 @@ process.env.DATABASE_URL = "pglite://memory";
 
 import { runMigrations, getDb, schema as s } from "../src/db";
 import { ensureAdmin } from "../src/server/bootstrap";
-import { createProject, createIndustry, createContributor, createAssignment, createRate, deleteIndustry, deleteProject } from "../src/server/masterdata";
+import { createProject, createIndustry, createContributor, createAssignment, createRate, deleteIndustry, deleteProject, deleteContributor } from "../src/server/masterdata";
 import { saveEntries, entrySheet } from "../src/server/hours";
 import { setAcceptance, allocateIndustry, listQc } from "../src/server/qc";
 import { previewStatement, createStatement, approveStatement, recordPayment, addAdjustment, voidStatement, industryOverview } from "../src/server/payments";
@@ -200,6 +200,14 @@ describe("deleting projects and industries", () => {
     const db = await getDb();
     expect((await db.select().from(s.projects)).some((x) => x.id === p.id)).toBe(false);
     expect((await db.select().from(s.industries)).some((x) => x.id === i.id)).toBe(false);
+  });
+  it("deletes an unused contributor but refuses one with recorded hours", async () => {
+    const c = await createContributor(admin, { fullName: "Unused", email: "unused@x.io", status: "ACTIVE" });
+    await deleteContributor(admin, c.id);
+    const db = await getDb();
+    expect((await db.select().from(s.contributors)).some((x) => x.id === c.id)).toBe(false);
+    const [withHours] = await db.select().from(s.dailyWorkRecords).limit(1);
+    await expect(deleteContributor(admin, withHours.contributorId)).rejects.toMatchObject({ status: 409 });
   });
   it("refuses to delete a project or industry that has hours or payments", async () => {
     await expect(deleteProject(admin, projectId)).rejects.toMatchObject({ status: 409 });

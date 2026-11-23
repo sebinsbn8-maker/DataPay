@@ -145,6 +145,24 @@ export async function updateContributor(u: U, id: string, input: Record<string, 
     return after;
   });
 }
+export async function deleteContributor(u: U, id: string) {
+  const db = await getDb();
+  return db.transaction(async (tx) => {
+    const [before] = await tx.select().from(s.contributors).where(eq(s.contributors.id, id));
+    if (!before) throw new HttpError(404, "Contributor not found");
+    const [w] = await tx.select({ id: s.dailyWorkRecords.id }).from(s.dailyWorkRecords).where(eq(s.dailyWorkRecords.contributorId, id)).limit(1);
+    const [a] = await tx.select({ id: s.acceptanceRecords.id }).from(s.acceptanceRecords).where(eq(s.acceptanceRecords.contributorId, id)).limit(1);
+    if (w || a) throw new HttpError(409, "This contributor has recorded hours or QC, so they can't be deleted. Set them to Inactive instead.");
+    const asg = await tx.select({ id: s.projectContributors.id }).from(s.projectContributors).where(eq(s.projectContributors.contributorId, id));
+    if (asg.length) await tx.delete(s.paymentRates).where(inArray(s.paymentRates.assignmentId, asg.map((x) => x.id)));
+    await tx.delete(s.projectContributors).where(eq(s.projectContributors.contributorId, id));
+    // a linked login is switched off rather than deleted (it may be referenced by audit history)
+    await tx.update(s.users).set({ isActive: false, contributorId: null, updatedAt: new Date() } as never).where(eq(s.users.contributorId, id));
+    await tx.delete(s.contributors).where(eq(s.contributors.id, id));
+    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "contributor", entityId: id, before: strip(before) });
+    return { deleted: true };
+  });
+}
 export async function contributorHistory(id: string) {
   const db = await getDb();
   const records = await db.select({

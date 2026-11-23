@@ -1,5 +1,5 @@
 import { handle, requirePermission, requireUser } from "@/server/guard";
-import { contributorHistory, updateContributor } from "@/server/masterdata";
+import { contributorHistory, updateContributor, deleteContributor } from "@/server/masterdata";
 import { contributorInput } from "@/server/schemas";
 
 export const GET = (_: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
@@ -12,4 +12,10 @@ export const PATCH = (req: Request, ctx: { params: Promise<{ id: string }> }) =>
   const u = await requirePermission("contributors:write");
   const { id } = await ctx.params;
   return updateContributor(u, id, contributorInput.partial().parse(await req.json()));
+});
+
+export const DELETE = (_req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
+  const u = await requirePermission("contributors:write");
+  const { id } = await ctx.params;
+  return deleteContributor(u, id);
 });
