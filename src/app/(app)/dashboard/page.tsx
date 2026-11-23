@@ -39,7 +39,7 @@ export default function DashboardPage() {
         <Stat label="Submitted hours" value={c ? hrs(c.submittedHours) : "–"} />
         <Stat label="Accepted hours" value={c ? hrs(c.acceptedHours) : "–"} tone="text-emerald-600" />
         <Stat label="Pending QC hours" value={c ? hrs(c.pendingHours) : "–"} tone="text-amber-600" />
-        <Stat label="Total payable" value={c ? inr(c.payable) : "–"} />
+        <Stat label="Net payable (after TDS)" value={c ? inr(c.payable) : "–"} /><Stat label="TDS deducted" value={c ? inr(c.tds) : "–"} tone="text-red-600" />
         <Stat label="Total paid" value={c ? inr(c.paid) : "–"} tone="text-violet" />
       </div>
 
@@ -52,7 +52,7 @@ export default function DashboardPage() {
           <Chart title="Industry-wise hour distribution">
             <PieChart><Pie data={data.industryHours} dataKey="hours" nameKey="name" innerRadius={55} outerRadius={95} paddingAngle={2}>{data.industryHours.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Pie><Tooltip /><Legend /></PieChart>
           </Chart>
-          <Chart title="Industry-wise payment distribution (₹ payable)">
+          <Chart title="Industry-wise payment distribution (₹ net payable)">
             <BarChart data={data.industryPayments} layout="vertical" margin={{ left: 40 }}><CartesianGrid strokeDasharray="3 3" horizontal={false} /><XAxis type="number" fontSize={12} /><YAxis type="category" dataKey="name" fontSize={12} width={130} /><Tooltip formatter={(v) => inr(Number(v))} />
               <Bar dataKey="payable" radius={[0, 4, 4, 0]}>{data.industryPayments.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}</Bar></BarChart>
           </Chart>

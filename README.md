@@ -136,3 +136,13 @@ managers are scoped to assigned projects/industries and contributors to their ow
 ## 9. What was and wasn't verified
 Verified here: 25 automated tests (including the spec's worked examples), a production build, real logins for all three roles, role isolation over HTTP, exports (xlsx/csv/pdf open correctly), a headless-browser pass over every page at desktop and phone sizes with no console or network errors, and a scripted click-through of hours → QC → statement → approval → partial payment.
 **Not verified:** a live Google OAuth round trip (needs your credentials), an actual Vercel/Render deployment, load/performance at scale, and real iPhone/Android devices (layouts were checked in a headless browser at 390 px width).
+
+
+## TDS (tax deducted at source)
+
+10% TDS is withheld from **every contributor's** earnings (set `TDS_PERCENT` to change the rate; default 10).
+
+- **Gross** = accepted hours × hourly rate. **TDS** = gross × TDS %, rounded to the paisa **per contributor, per rate line** (same rule as the gross amounts). **Net payable** = gross − TDS.
+- The TDS % and amount are **frozen on each payment statement** when it is created, so later rate or TDS changes never alter existing statements. Statements created before TDS existed keep 0%.
+- **Net approved** = gross − TDS + adjustments. Payments are recorded against the net amount. Manual adjustments are not subject to TDS.
+- Dashboard, Payments, Reports (Excel/CSV/PDF) and the contributor's "My work" page show Gross, TDS and Net, and all agree to the paisa.

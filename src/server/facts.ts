@@ -3,6 +3,7 @@ import { getDb, schema as s, type DB } from "@/db";
 import { managerScope } from "./guard";
 import { D, resolveRate, type RateRow } from "@/lib/calc";
 import type { Fact } from "@/lib/aggregate";
+import { currentTdsPercent } from "@/lib/tds";
 import type { Role } from "@/lib/permissions";
 
 export type FactFilter = { from?: string; to?: string; projectId?: string; industryId?: string; contributorId?: string };
@@ -17,12 +18,13 @@ export async function loadFacts(u: { id: string; role: Role; contributorId?: str
     target: s.dailyWorkRecords.targetHours, actual: s.dailyWorkRecords.actualHours, submitted: s.dailyWorkRecords.submittedHours,
     pct: s.acceptanceRecords.acceptancePct, accepted: s.acceptanceRecords.acceptedHours, rejected: s.acceptanceRecords.rejectedHours,
     qcStatus: s.acceptanceRecords.qcStatus, statementId: s.acceptanceRecords.statementId,
-    appliedRate: s.acceptanceRecords.appliedRate, payableAmount: s.acceptanceRecords.payableAmount,
+    appliedRate: s.acceptanceRecords.appliedRate, payableAmount: s.acceptanceRecords.payableAmount, stmtTdsPercent: s.industryPaymentStatements.tdsPercent,
   }).from(s.dailyWorkRecords)
     .innerJoin(s.projects, eq(s.projects.id, s.dailyWorkRecords.projectId))
     .innerJoin(s.industries, eq(s.industries.id, s.dailyWorkRecords.industryId))
     .innerJoin(s.contributors, eq(s.contributors.id, s.dailyWorkRecords.contributorId))
     .leftJoin(s.acceptanceRecords, eq(s.acceptanceRecords.dailyRecordId, s.dailyWorkRecords.id))
+    .leftJoin(s.industryPaymentStatements, eq(s.industryPaymentStatements.id, s.acceptanceRecords.statementId))
     .where(and(
       f.from ? gte(s.dailyWorkRecords.workDate, f.from) : undefined, f.to ? lte(s.dailyWorkRecords.workDate, f.to) : undefined,
       f.projectId ? eq(s.dailyWorkRecords.projectId, f.projectId) : undefined, f.industryId ? eq(s.dailyWorkRecords.industryId, f.industryId) : undefined,
@@ -34,6 +36,7 @@ export async function loadFacts(u: { id: string; role: Role; contributorId?: str
     return !scope || scope.industryIds.has(r.industryId) || scope.managedProjectIds.has(r.projectId);
   });
   const rates = (await db.select().from(s.paymentRates)) as unknown as RateRow[];
+  const nowTds = String(currentTdsPercent());
 
   return visible.map((r) => {
     const pct = r.pct ?? null;
@@ -51,6 +54,7 @@ export async function loadFacts(u: { id: string; role: Role; contributorId?: str
       target: r.target, actual: r.actual, submitted: r.submitted, pct, accepted: acc.toString(),
       rejected: pct === null ? "0" : D(r.rejected).toString(), pending: pct === null ? sub.toString() : "0",
       qcStatus: r.qcStatus ?? "PENDING", statementId: r.statementId ?? null, rate, amount: amount.toString(),
+      tdsPercent: r.statementId ? String(Number(r.stmtTdsPercent ?? 0)) : nowTds,
     };
   });
 }

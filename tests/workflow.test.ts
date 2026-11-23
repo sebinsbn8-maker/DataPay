@@ -1,4 +1,5 @@
 import { beforeAll, describe, expect, it } from "vitest";
+import { eq } from "drizzle-orm";
 process.env.DATABASE_URL = "pglite://memory";
 
 import { runMigrations, getDb, schema as s } from "../src/db";
@@ -57,6 +58,10 @@ describe("spec example: Manufacturing industry", () => {
     const prev = await previewStatement(admin, mfg, D1, D1);
     expect(prev.totalAmount).toBe("4425");
     expect(prev.lines.map((l) => l.amount).sort()).toEqual(["2175", "2250"]);
+    // 10% TDS is withheld from every contributor line (rounded per line)
+    expect(prev.lines.map((l) => l.tds).sort()).toEqual(["217.5", "225"]);
+    expect(prev.totalTds).toBe("442.5");
+    expect(prev.totalNet).toBe("3982.5");
   });
 
   it("prevents duplicate daily entries (same assignment + date updates in place)", async () => {
@@ -80,6 +85,8 @@ describe("payment workflow", () => {
     const st = await createStatement(admin, { industryId: mfg, from: D1, to: D1 });
     stmtId = st.id;
     expect(st.calculatedAmount).toBe("4425.00");
+    expect(st.tdsPercent).toBe("10.00");
+    expect(st.tdsAmount).toBe("442.50");
     expect(st.status).toBe("PENDING_APPROVAL");
     // the same hours cannot be billed twice
     await expect(createStatement(admin, { industryId: mfg, from: D1, to: D1 })).rejects.toThrow(/No client-reviewed hours/);
@@ -92,7 +99,7 @@ describe("payment workflow", () => {
   it("cannot record payment before approval; approves exactly once", async () => {
     await expect(recordPayment(admin, stmtId, { amount: 100, paymentDate: D1, referenceNumber: "X1", method: "UPI" })).rejects.toThrow(/Approve/);
     const ap = await approveStatement(admin, stmtId);
-    expect(ap.approvedAmount).toBe("4425.00");
+    expect(ap.approvedAmount).toBe("3982.50"); // gross 4425 - TDS 442.50
     await expect(approveStatement(admin, stmtId)).rejects.toThrow(/already/);
     // concurrent double-approval: at most one succeeds
     const st2 = await createStatement(admin, { industryId: mfg, from: D2, to: D2 }).catch(() => null);
@@ -106,9 +113,10 @@ describe("payment workflow", () => {
     await expect(recordPayment(admin, stmtId, { amount: 10, paymentDate: D2, referenceNumber: "NEFT-1", method: "UPI" })).rejects.toThrow();
     const ov = (await industryOverview(admin, { projectId })).find((o) => o.industryId === mfg)!;
     expect(ov.paid).toBe("1000");
-    expect(ov.remaining).toBe("3425");
+    expect(ov.remaining).toBe("2982.5");   // net 3982.50 - paid 1000
+    expect(ov.tds).toBe("442.5");
     expect(ov.status).toBe("PARTIALLY_PAID");
-    const p2 = await recordPayment(admin, stmtId, { amount: 3425, paymentDate: D2, referenceNumber: "NEFT-3", method: "BANK_TRANSFER" });
+    const p2 = await recordPayment(admin, stmtId, { amount: 2982.5, paymentDate: D2, referenceNumber: "NEFT-3", method: "BANK_TRANSFER" });
     expect(p2.status).toBe("PAID");
   });
 
@@ -168,13 +176,26 @@ describe("industry-level acceptance", () => {
   });
 });
 
+describe("TDS", () => {
+  it("is frozen per statement and withheld per contributor line (rounded to the paisa)", async () => {
+    const db = await getDb();
+    const [st] = await db.select().from(s.industryPaymentStatements).where(eq(s.industryPaymentStatements.industryId, mfg));
+    const lines = st.lines as unknown as { amount: string; tds: string; net: string }[];
+    expect(lines.reduce((t, l) => t + Number(l.tds), 0)).toBeCloseTo(Number(st.tdsAmount), 2);
+    expect(lines.every((l) => Math.abs(Number(l.amount) - Number(l.tds) - Number(l.net)) < 0.005)).toBe(true);
+    expect(Number(st.approvedAmount)).toBeCloseTo(Number(st.calculatedAmount) - Number(st.tdsAmount), 2);
+  });
+});
+
 describe("one number everywhere", () => {
   it("industry payable is identical in facts aggregate and the payments overview (to the paisa)", async () => {
     const ov = await industryOverview(admin, { projectId });
     for (const o of ov) {
       const facts = await loadFacts(admin, { industryId: o.industryId });
       const a = aggregate(facts, () => ({ key: "x", name: "x" }))[0];
-      expect(a ? a.amount.toFixed(2) : "0.00").toBe(Number(o.payable).toFixed(2));
+      expect(a ? a.net.toFixed(2) : "0.00").toBe(Number(o.payable).toFixed(2));
+      expect(a ? a.tds.toFixed(2) : "0.00").toBe(Number(o.tds).toFixed(2));
+      expect(a ? a.amount.toFixed(2) : "0.00").toBe(Number(o.gross).toFixed(2));
     }
   });
 });

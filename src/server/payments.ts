@@ -6,10 +6,14 @@ import { HttpError, assertIndustryAccess, managerScope } from "./guard";
 import { D, resolveRate, type RateRow } from "@/lib/calc";
 import { aggregate, lineize } from "@/lib/aggregate";
 import { loadFacts } from "./facts";
+import { currentTdsPercent } from "@/lib/tds";
 import type { Role } from "@/lib/permissions";
 
 type U = { id: string; role: Role };
 type StatementStatus = "NOT_READY" | "PENDING_APPROVAL" | "APPROVED" | "PARTIALLY_PAID" | "PAID" | "VOID";
+
+type LineIn = ReturnType<typeof lineize>[number];
+const serLine = (l: LineIn) => ({ ...l, submitted: l.submitted.toString(), accepted: l.accepted.toString(), rejected: l.rejected.toString(), amount: l.amount.toString(), tds: l.tds.toString(), net: l.net.toString() });
 
 /** Preview what a statement would contain without saving anything. */
 export async function previewStatement(u: U, industryId: string, from: string, to: string) {
@@ -20,7 +24,10 @@ export async function previewStatement(u: U, industryId: string, from: string, t
   const noRate = [...new Set(eligible.filter((f) => !f.rate && D(f.accepted).gt(0)).map((f) => f.contributorName))];
   const lines = lineize(eligible);
   return {
-    lines: lines.map((l) => ({ ...l, submitted: l.submitted.toString(), accepted: l.accepted.toString(), rejected: l.rejected.toString(), amount: l.amount.toString() })),
+    lines: lines.map(serLine),
+    tdsPercent: currentTdsPercent(),
+    totalTds: lines.reduce((t, l) => t.plus(l.tds), D(0)).toString(),
+    totalNet: lines.reduce((t, l) => t.plus(l.net), D(0)).toString(),
     totalAccepted: lines.reduce((t, l) => t.plus(l.accepted), D(0)).toString(),
     totalAmount: lines.reduce((t, l) => t.plus(l.amount), D(0)).toString(),
     pendingHours: pending.reduce((t, f) => t.plus(f.pending), D(0)).toString(),
@@ -43,7 +50,7 @@ export async function createStatement(u: U, i: { industryId: string; from: strin
     const year = i.to.slice(0, 4);
     const code = await nextCode(tx as never, `payment-${year}`, `PAY-${year}`);
     const [stmt] = await tx.insert(s.industryPaymentStatements).values({
-      code, projectId: ind.projectId, industryId: ind.id, periodStart: i.from, periodEnd: i.to, status: "PENDING_APPROVAL", remarks: i.remarks, createdBy: u.id,
+      code, projectId: ind.projectId, industryId: ind.id, periodStart: i.from, periodEnd: i.to, status: "PENDING_APPROVAL", remarks: i.remarks, createdBy: u.id, tdsPercent: String(currentTdsPercent()),
     }).returning();
 
     // atomic claim: only rows not yet in any statement, with a received client percentage
@@ -70,14 +77,15 @@ export async function createStatement(u: U, i: { industryId: string; from: strin
     const lines = lineize(facts);
     const t = aggregate(facts, () => ({ key: "x", name: "x" }))[0];
     const calculated = lines.reduce((sum, l) => sum.plus(l.amount), D(0));
+    const tdsTotal = lines.reduce((sum, l) => sum.plus(l.tds), D(0));
     const pendingFacts = allFacts.filter((f) => f.pct === null);
     const [saved] = await tx.update(s.industryPaymentStatements).set({
       totalSubmittedHours: t.submitted.toString(), totalAcceptedHours: t.accepted.toString(), totalRejectedHours: t.rejected.toString(),
       totalPendingHours: pendingFacts.reduce((x, f) => x.plus(f.pending), D(0)).toString(),
-      calculatedAmount: calculated.toString(),
-      lines: lines.map((l) => ({ ...l, submitted: l.submitted.toString(), accepted: l.accepted.toString(), rejected: l.rejected.toString(), amount: l.amount.toString() })) as never,
+      calculatedAmount: calculated.toString(), tdsAmount: tdsTotal.toString(),
+      lines: lines.map(serLine) as never,
     }).where(eq(s.industryPaymentStatements.id, stmt.id)).returning();
-    await audit(tx as never, { userId: u.id, action: "CREATE", entity: "payment_statement", entityId: saved.id, after: { code, period: [i.from, i.to], calculated: calculated.toString(), records: claimed.length } });
+    await audit(tx as never, { userId: u.id, action: "CREATE", entity: "payment_statement", entityId: saved.id, after: { code, period: [i.from, i.to], calculated: calculated.toString(), tds: tdsTotal.toString(), records: claimed.length } });
     return saved;
   });
 }
@@ -89,7 +97,7 @@ export async function approveStatement(u: U, id: string) {
     const [st] = await tx.select().from(s.industryPaymentStatements).where(eq(s.industryPaymentStatements.id, id)).for("update");
     if (!st) throw new HttpError(404, "Statement not found");
     if (st.status !== "PENDING_APPROVAL") throw new HttpError(409, `Statement is already ${st.status.replace("_", " ").toLowerCase()}`);
-    const approved = D(st.calculatedAmount).plus(st.adjustmentsTotal);
+    const approved = D(st.calculatedAmount).plus(st.adjustmentsTotal).minus(st.tdsAmount); // net payable after TDS
     if (approved.lt(0)) throw new HttpError(400, "Approved amount cannot be negative");
     const [after] = await tx.update(s.industryPaymentStatements).set({ status: "APPROVED", approvedAmount: approved.toString(), approvedBy: u.id, approvedAt: new Date(), updatedAt: new Date() })
       .where(eq(s.industryPaymentStatements.id, id)).returning();
@@ -108,7 +116,7 @@ export async function addAdjustment(u: U, id: string, amount: number, reason: st
     if (!st) throw new HttpError(404, "Statement not found");
     if (st.status === "VOID" || st.status === "PAID") throw new HttpError(409, `Cannot adjust a ${st.status.toLowerCase()} statement`);
     const adj = D(st.adjustmentsTotal).plus(amount);
-    const total = D(st.calculatedAmount).plus(adj);
+    const total = D(st.calculatedAmount).plus(adj).minus(st.tdsAmount);
     if (total.lt(0)) throw new HttpError(400, "Adjustment would make the statement total negative");
     const approved = st.status === "PENDING_APPROVAL" ? D(0) : total;
     if (st.status !== "PENDING_APPROVAL" && approved.lt(st.paidAmount)) throw new HttpError(400, "Adjustment would drop the approved amount below what has already been paid");
@@ -168,7 +176,8 @@ export async function listStatements(u: U, f: { industryId?: string; projectId?:
     .where(and(f.industryId ? eq(s.industryPaymentStatements.industryId, f.industryId) : undefined, f.projectId ? eq(s.industryPaymentStatements.projectId, f.projectId) : undefined))
     .orderBy(desc(s.industryPaymentStatements.createdAt));
   return rows.filter((r) => !scope || scope.industryIds.has(r.st.industryId) || scope.managedProjectIds.has(r.st.projectId))
-    .map((r) => ({ ...r.st, projectName: r.projectName, industryName: r.industryName, outstanding: D(r.st.approvedAmount).minus(r.st.paidAmount).toString() }));
+    .map((r) => ({ ...r.st, projectName: r.projectName, industryName: r.industryName, outstanding: D(r.st.approvedAmount).minus(r.st.paidAmount).toString(),
+      netAmount: D(r.st.calculatedAmount).plus(r.st.adjustmentsTotal).minus(r.st.tdsAmount).toString() }));
 }
 
 export async function statementDetail(u: U, id: string) {
@@ -194,8 +203,11 @@ export async function industryOverview(u: U, f: { from?: string; to?: string; pr
     const fs = facts.filter((x) => x.industryId === ind.id);
     const a = aggregate(fs, () => ({ key: "x", name: "x" }))[0];
     const mine = stmts.filter((x) => x.industryId === ind.id);
-    const unbilled = lineize(fs.filter((x) => x.pct !== null && !x.statementId)).reduce((t, l) => t.plus(l.amount), D(0));
-    const billed = mine.reduce((t, x) => t.plus(x.calculatedAmount).plus(x.adjustmentsTotal), D(0));
+    const unbilledLines = lineize(fs.filter((x) => x.pct !== null && !x.statementId));
+    const unbilled = unbilledLines.reduce((t, l) => t.plus(l.net), D(0));            // net, after TDS
+    const unbilledTds = unbilledLines.reduce((t, l) => t.plus(l.tds), D(0));
+    const billed = mine.reduce((t, x) => t.plus(x.calculatedAmount).plus(x.adjustmentsTotal).minus(x.tdsAmount), D(0)); // net, after TDS
+    const tds = mine.reduce((t, x) => t.plus(x.tdsAmount), D(0)).plus(unbilledTds);
     const paid = mine.reduce((t, x) => t.plus(x.paidAmount), D(0));
     const payable = billed.plus(unbilled);
     // Status rules (documented in README):
@@ -212,7 +224,7 @@ export async function industryOverview(u: U, f: { from?: string; to?: string; pr
     return {
       industryId: ind.id, industryName: ind.name, projectId: ind.projectId, projectName: projects.find((p) => p.id === ind.projectId)?.name ?? "",
       submitted: (a?.submitted ?? D(0)).toString(), accepted: (a?.accepted ?? D(0)).toString(), rejected: (a?.rejected ?? D(0)).toString(), pending: (a?.pending ?? D(0)).toString(),
-      payable: payable.toDecimalPlaces(2).toString(), unbilled: unbilled.toString(), paid: paid.toString(), remaining: payable.minus(paid).toDecimalPlaces(2).toString(), status,
+      payable: payable.toDecimalPlaces(2).toString(), tds: tds.toString(), gross: payable.plus(tds).toDecimalPlaces(2).toString(), unbilled: unbilled.toString(), paid: paid.toString(), remaining: payable.minus(paid).toDecimalPlaces(2).toString(), status,
     };
   });
 }

@@ -9,17 +9,17 @@ export const REPORT_COLS: Record<ReportKind, Col[]> = {
     { key: "contributor", header: "Contributor" }, { key: "project", header: "Project" }, { key: "industry", header: "Industry" },
     { key: "target", header: "Target h" }, { key: "submitted", header: "Submitted h" }, { key: "accepted", header: "Accepted h" }, { key: "rejected", header: "Rejected h" },
     { key: "acceptancePct", header: "Acceptance %" }, { key: "productivityPct", header: "Productivity %" }, { key: "rate", header: "Hourly rate", money: true },
-    { key: "payable", header: "Payable", money: true }, { key: "paymentStatus", header: "Payment status" },
+    { key: "gross", header: "Gross", money: true }, { key: "tds", header: "TDS", money: true }, { key: "payable", header: "Net payable", money: true }, { key: "paymentStatus", header: "Payment status" },
   ],
   industry: [
     { key: "industry", header: "Industry" }, { key: "project", header: "Project" }, { key: "contributors", header: "Contributors" }, { key: "target", header: "Target h" },
     { key: "submitted", header: "Submitted h" }, { key: "accepted", header: "Accepted h" }, { key: "rejected", header: "Rejected h" }, { key: "acceptancePct", header: "Acceptance %" },
-    { key: "productivityPct", header: "Productivity %" }, { key: "payable", header: "Payable", money: true }, { key: "paid", header: "Paid", money: true }, { key: "outstanding", header: "Outstanding", money: true },
+    { key: "productivityPct", header: "Productivity %" }, { key: "gross", header: "Gross", money: true }, { key: "tds", header: "TDS", money: true }, { key: "payable", header: "Net payable", money: true }, { key: "paid", header: "Paid", money: true }, { key: "outstanding", header: "Outstanding", money: true },
   ],
   project: [
     { key: "project", header: "Project" }, { key: "industries", header: "Industries" }, { key: "contributors", header: "Contributors" }, { key: "submitted", header: "Submitted h" },
     { key: "accepted", header: "Accepted h" }, { key: "rejected", header: "Rejected h" }, { key: "acceptancePct", header: "Acceptance %" },
-    { key: "payable", header: "Total payment", money: true }, { key: "paid", header: "Paid", money: true }, { key: "remaining", header: "Remaining", money: true },
+    { key: "gross", header: "Gross", money: true }, { key: "tds", header: "TDS", money: true }, { key: "payable", header: "Net payment", money: true }, { key: "paid", header: "Paid", money: true }, { key: "remaining", header: "Remaining", money: true },
   ],
 };
 

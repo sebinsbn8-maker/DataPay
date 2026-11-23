@@ -193,7 +193,9 @@ export const industryPaymentStatements = pgTable("industry_payment_statements", 
   totalAcceptedHours: hours("total_accepted_hours").notNull().default("0"),
   totalRejectedHours: hours("total_rejected_hours").notNull().default("0"),
   totalPendingHours: hours("total_pending_hours").notNull().default("0"),
-  calculatedAmount: money("calculated_amount").notNull().default("0"),
+  calculatedAmount: money("calculated_amount").notNull().default("0"),   // gross: accepted hours x rate
+  tdsPercent: numeric("tds_percent", { precision: 5, scale: 2 }).notNull().default("0"), // frozen at creation (0 for statements made before TDS existed)
+  tdsAmount: money("tds_amount").notNull().default("0"),                 // sum of per-line TDS, withheld from contributors
   adjustmentsTotal: money("adjustments_total").notNull().default("0"),
   approvedAmount: money("approved_amount").notNull().default("0"),
   paidAmount: money("paid_amount").notNull().default("0"),

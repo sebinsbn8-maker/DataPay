@@ -24,6 +24,7 @@ export async function dashboard(u: U, f: FactFilter) {
   const overview = (await industryOverview(u, { from: f.from, to: f.to, projectId: f.projectId })).filter((o) => !f.industryId || o.industryId === f.industryId);
   const payable = overview.reduce((x, o) => x.plus(o.payable), D(0));
   const paid = overview.reduce((x, o) => x.plus(o.paid), D(0));
+  const tds = overview.reduce((x, o) => x.plus(o.tds), D(0));
 
   const byProject = aggregate(facts, (x) => ({ key: x.projectId, name: x.projectName })).map((a) => ({ name: a.name, submitted: r2(n(a.submitted)), accepted: r2(n(a.accepted)) }));
   const byIndustry = aggregate(facts, (x) => ({ key: x.industryId, name: x.industryName }));
@@ -40,7 +41,7 @@ export async function dashboard(u: U, f: FactFilter) {
     cards: {
       activeProjects: projects.filter((p) => p.status === "ACTIVE" && !p.archivedAt).length, industries: industries.length, contributors: cons.size,
       targetHours: n(t.target), submittedHours: n(t.submitted), acceptedHours: n(t.accepted), pendingHours: n(t.pending),
-      payable: n(payable.toDecimalPlaces(2)), paid: n(paid.toDecimalPlaces(2)),
+      payable: n(payable.toDecimalPlaces(2)), tds: n(tds.toDecimalPlaces(2)), paid: n(paid.toDecimalPlaces(2)),
     },
     projectHours: byProject,
     industryHours: byIndustry.map((a) => ({ name: a.name, hours: r2(n(a.submitted)) })),
@@ -106,7 +107,7 @@ export async function report(u: U, kind: ReportKind, f: FactFilter) {
       const sample = facts.find((x) => key(x).key === a.key)!;
       const statuses = new Set(facts.filter((x) => key(x).key === a.key).map((x) => (x.statementId ? stmts.find((st) => st.id === x.statementId)?.status ?? "PENDING_APPROVAL" : x.pct === null ? "NOT_READY" : "PENDING_APPROVAL")));
       return { id: a.key, contributor: a.name, project: sample.projectName, industry: sample.industryName, target: pc(a.target), submitted: pc(a.submitted), accepted: pc(a.accepted), rejected: pc(a.rejected),
-        acceptancePct: pc(a.acceptancePct), productivityPct: pc(a.submittedProductivity), rate: sample.rate ? Number(sample.rate) : 0, payable: n(a.amount), paymentStatus: [...statuses].join(" / ") };
+        acceptancePct: pc(a.acceptancePct), productivityPct: pc(a.submittedProductivity), rate: sample.rate ? Number(sample.rate) : 0, gross: n(a.amount), tds: n(a.tds), payable: n(a.net), paymentStatus: [...statuses].join(" / ") };
     });
   }
   if (kind === "industry") {
@@ -114,7 +115,7 @@ export async function report(u: U, kind: ReportKind, f: FactFilter) {
       const sample = facts.find((x) => x.industryId === a.key)!;
       const paid = paidByIndustry.get(a.key) ?? 0;
       return { id: a.key, industry: a.name, project: sample.projectName, contributors: a.contributors, target: pc(a.target), submitted: pc(a.submitted), accepted: pc(a.accepted), rejected: pc(a.rejected),
-        acceptancePct: pc(a.acceptancePct), productivityPct: pc(a.submittedProductivity), payable: n(a.amount), paid: r2(paid), outstanding: r2(n(a.amount) - paid) };
+        acceptancePct: pc(a.acceptancePct), productivityPct: pc(a.submittedProductivity), gross: n(a.amount), tds: n(a.tds), payable: n(a.net), paid: r2(paid), outstanding: r2(n(a.net) - paid) };
     });
   }
   const industriesByProject = new Map<string, Set<string>>();
@@ -122,7 +123,7 @@ export async function report(u: U, kind: ReportKind, f: FactFilter) {
   return aggregate(facts, (x) => ({ key: x.projectId, name: x.projectName })).map((a) => {
     const paid = paidByProject.get(a.key) ?? 0;
     return { id: a.key, project: a.name, industries: industriesByProject.get(a.key)?.size ?? 0, contributors: a.contributors, submitted: pc(a.submitted), accepted: pc(a.accepted), rejected: pc(a.rejected),
-      acceptancePct: pc(a.acceptancePct), payable: n(a.amount), paid: r2(paid), remaining: r2(n(a.amount) - paid) };
+      acceptancePct: pc(a.acceptancePct), gross: n(a.amount), tds: n(a.tds), payable: n(a.net), paid: r2(paid), remaining: r2(n(a.net) - paid) };
   });
 }
 void gte; void lte;

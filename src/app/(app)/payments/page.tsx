@@ -4,11 +4,11 @@ import { useSession } from "next-auth/react";
 import { Badge, Button, Card, DataTable, Field, Input, Modal, PageHeader, Select, Stat, Textarea, api } from "@/components/ui";
 import { FilterBar, hrs, inr, monthStart, today, toQuery, useApi, useLookups, type FilterState } from "@/components/hooks";
 
-type Ov = { industryId: string; industryName: string; projectName: string; submitted: string; accepted: string; rejected: string; pending: string; payable: string; unbilled: string; paid: string; remaining: string; status: string };
-type Line = { contributorId: string; contributorName: string; contributorCode: string; rate: string; submitted: string; accepted: string; rejected: string; amount: string };
-type St = { id: string; code: string; projectName: string; industryName: string; periodStart: string; periodEnd: string; totalAcceptedHours: string; totalPendingHours: string; calculatedAmount: string; adjustmentsTotal: string; approvedAmount: string; paidAmount: string; outstanding: string; status: string; lines: Line[]; remarks: string | null };
+type Ov = { industryId: string; industryName: string; projectName: string; submitted: string; accepted: string; rejected: string; pending: string; payable: string; tds: string; gross: string; unbilled: string; paid: string; remaining: string; status: string };
+type Line = { contributorId: string; contributorName: string; contributorCode: string; rate: string; submitted: string; accepted: string; rejected: string; amount: string; tds: string; net: string };
+type St = { id: string; code: string; projectName: string; industryName: string; periodStart: string; periodEnd: string; totalAcceptedHours: string; totalPendingHours: string; calculatedAmount: string; tdsPercent: string; tdsAmount: string; netAmount: string; adjustmentsTotal: string; approvedAmount: string; paidAmount: string; outstanding: string; status: string; lines: Line[]; remarks: string | null };
 type Detail = St & { transactions: { id: string; amount: string; paymentDate: string; referenceNumber: string; method: string; remarks: string | null }[]; adjustments: { id: string; amount: string; reason: string; createdAt: string }[] };
-type Preview = { lines: Line[]; totalAccepted: string; totalAmount: string; pendingHours: string; recordsIncluded: number; contributorsWithoutRate: string[]; alreadyBilledRecords: number };
+type Preview = { lines: Line[]; totalAccepted: string; totalAmount: string; totalTds: string; totalNet: string; tdsPercent: number; pendingHours: string; recordsIncluded: number; contributorsWithoutRate: string[]; alreadyBilledRecords: number };
 
 const LABEL: Record<string, string> = { NOT_READY: "Not ready", PENDING_APPROVAL: "Pending approval", APPROVED: "Approved", PARTIALLY_PAID: "Partially paid", PAID: "Paid", VOID: "Void" };
 const TONE: Record<string, "gray" | "amber" | "blue" | "violet" | "green" | "red"> = { NOT_READY: "gray", PENDING_APPROVAL: "amber", APPROVED: "blue", PARTIALLY_PAID: "violet", PAID: "green", VOID: "red" };
@@ -38,8 +38,8 @@ export default function PaymentsPage() {
       <PageHeader title="Payments" subtitle="Payments are calculated on client-accepted hours and settled per industry."
         actions={<Button onClick={() => { setErr(""); setPreview(null); setCreate({ industryId: f.industryId || industries[0]?.id || "", from: monthStart(), to: today(), remarks: "" }); }}>New payment statement</Button>} />
       <FilterBar value={f} onChange={setF} projects={projects} industries={industries} />
-      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Accepted hours" value={hrs(sum("accepted"))} /><Stat label="Total payable" value={inr(sum("payable"))} />
+      <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-5">
+        <Stat label="Accepted hours" value={hrs(sum("accepted"))} /><Stat label="TDS deducted" value={inr(sum("tds"))} tone="text-red-600" /><Stat label="Net payable (after TDS)" value={inr(sum("payable"))} />
         <Stat label="Paid" value={inr(sum("paid"))} tone="text-violet" /><Stat label="Remaining" value={inr(sum("remaining"))} tone="text-amber-600" />
       </div>
 
@@ -51,7 +51,8 @@ export default function PaymentsPage() {
           { key: "accepted", header: "Accepted h", align: "right", render: (o) => hrs(o.accepted) },
           { key: "rejected", header: "Rejected h", align: "right", render: (o) => hrs(o.rejected) },
           { key: "pending", header: "Pending h", align: "right", render: (o) => hrs(o.pending) },
-          { key: "payable", header: "Payable", align: "right", sortValue: (o) => Number(o.payable), render: (o) => inr(o.payable) },
+          { key: "tds", header: "TDS", align: "right", render: (o) => inr(o.tds) },
+          { key: "payable", header: "Net payable", align: "right", sortValue: (o) => Number(o.payable), render: (o) => inr(o.payable) },
           { key: "paid", header: "Paid", align: "right", render: (o) => inr(o.paid) },
           { key: "remaining", header: "Remaining", align: "right", sortValue: (o) => Number(o.remaining), render: (o) => inr(o.remaining) },
           { key: "status", header: "Status", render: (o) => <div><Badge tone={TONE[o.status]}>{LABEL[o.status]}</Badge>{Number(o.unbilled) > 0 && <p className="mt-1 text-xs text-muted">{inr(o.unbilled)} not yet billed</p>}</div> },
@@ -63,8 +64,9 @@ export default function PaymentsPage() {
           { key: "code", header: "Payment ID", sortValue: (s) => s.code, render: (s) => <span className="font-medium">{s.code}</span> },
           { key: "industryName", header: "Industry", render: (s) => `${s.projectName} · ${s.industryName}` },
           { key: "period", header: "Period", render: (s) => `${s.periodStart} → ${s.periodEnd}` },
-          { key: "calc", header: "Calculated", align: "right", render: (s) => inr(s.calculatedAmount) },
-          { key: "appr", header: "Approved", align: "right", render: (s) => (s.status === "PENDING_APPROVAL" ? "—" : inr(s.approvedAmount)) },
+          { key: "calc", header: "Gross", align: "right", render: (s) => inr(s.calculatedAmount) },
+          { key: "tds", header: "TDS", align: "right", render: (s) => inr(s.tdsAmount) },
+          { key: "appr", header: "Net approved", align: "right", render: (s) => (s.status === "PENDING_APPROVAL" ? "—" : inr(s.approvedAmount)) },
           { key: "paid", header: "Paid", align: "right", render: (s) => inr(s.paidAmount) },
           { key: "status", header: "Status", render: (s) => <Badge tone={TONE[s.status]}>{LABEL[s.status]}</Badge> },
         ]} />
@@ -85,8 +87,10 @@ export default function PaymentsPage() {
                 {preview.contributorsWithoutRate.length > 0 && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">No hourly rate for: {preview.contributorsWithoutRate.join(", ")}. Set a rate first (Industries → Set hourly rate).</p>}
                 <DataTable rows={preview.lines.map((l) => ({ ...l, id: l.contributorId + l.rate }))} empty="No reviewed hours in this period" pageSize={8} cols={[
                   { key: "contributorName", header: "Contributor" }, { key: "accepted", header: "Accepted h", align: "right", render: (l) => hrs(l.accepted) },
-                  { key: "rate", header: "Rate", align: "right", render: (l) => inr(l.rate) }, { key: "amount", header: "Amount", align: "right", render: (l) => inr(l.amount) }]} />
-                <div className="flex flex-wrap justify-between gap-2 text-sm"><span>Accepted: <b>{hrs(preview.totalAccepted)} h</b> · Pending QC (excluded): <b>{hrs(preview.pendingHours)} h</b></span><span className="text-lg font-semibold">{inr(preview.totalAmount)}</span></div>
+                  { key: "rate", header: "Rate", align: "right", render: (l) => inr(l.rate) }, { key: "amount", header: "Gross", align: "right", render: (l) => inr(l.amount) },
+                  { key: "tds", header: `TDS ${preview.tdsPercent}%`, align: "right", render: (l) => inr(l.tds) }, { key: "net", header: "Net", align: "right", render: (l) => inr(l.net) }]} />
+                <div className="flex flex-wrap items-end justify-between gap-2 text-sm"><span>Accepted: <b>{hrs(preview.totalAccepted)} h</b> · Pending QC (excluded): <b>{hrs(preview.pendingHours)} h</b></span>
+                  <span className="text-right">Gross {inr(preview.totalAmount)} − TDS {inr(preview.totalTds)}<br /><span className="text-lg font-semibold">Net {inr(preview.totalNet)}</span></span></div>
               </div>)}
             <Field label="Remarks"><Textarea rows={2} value={create.remarks} onChange={(e) => setCreate({ ...create, remarks: e.target.value })} /></Field>
             {err && <p className="text-sm text-red-700">{err}</p>}
@@ -100,14 +104,15 @@ export default function PaymentsPage() {
         {d && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-sm text-muted">{d.projectName} · {d.periodStart} → {d.periodEnd}</div><Badge tone={TONE[d.status]}>{LABEL[d.status]}</Badge></div>
-            <div className="grid grid-cols-2 gap-3 md:grid-cols-5">
-              <Stat label="Accepted h" value={hrs(d.totalAcceptedHours)} /><Stat label="Calculated" value={inr(d.calculatedAmount)} /><Stat label="Adjustments" value={inr(d.adjustmentsTotal)} />
-              <Stat label="Approved" value={d.status === "PENDING_APPROVAL" ? "—" : inr(d.approvedAmount)} /><Stat label="Outstanding" value={d.status === "PENDING_APPROVAL" || d.status === "VOID" ? "—" : inr(d.outstanding)} tone="text-amber-600" />
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
+              <Stat label="Accepted h" value={hrs(d.totalAcceptedHours)} /><Stat label="Gross" value={inr(d.calculatedAmount)} /><Stat label={`TDS ${Number(d.tdsPercent)}%`} value={inr(d.tdsAmount)} tone="text-red-600" /><Stat label="Adjustments" value={inr(d.adjustmentsTotal)} />
+              <Stat label="Net approved" value={d.status === "PENDING_APPROVAL" ? "—" : inr(d.approvedAmount)} /><Stat label="Outstanding" value={d.status === "PENDING_APPROVAL" || d.status === "VOID" ? "—" : inr(d.outstanding)} tone="text-amber-600" />
             </div>
             <section><h3 className="mb-2 text-sm font-semibold">Contributor breakdown</h3>
               <DataTable rows={(d.lines ?? []).map((l) => ({ ...l, id: l.contributorId + l.rate }))} pageSize={8} cols={[
                 { key: "contributorName", header: "Contributor", render: (l) => `${l.contributorName} (${l.contributorCode})` }, { key: "submitted", header: "Submitted h", align: "right", render: (l) => hrs(l.submitted) },
-                { key: "accepted", header: "Accepted h", align: "right", render: (l) => hrs(l.accepted) }, { key: "rate", header: "Rate", align: "right", render: (l) => inr(l.rate) }, { key: "amount", header: "Amount", align: "right", render: (l) => inr(l.amount) }]} /></section>
+                { key: "accepted", header: "Accepted h", align: "right", render: (l) => hrs(l.accepted) }, { key: "rate", header: "Rate", align: "right", render: (l) => inr(l.rate) }, { key: "amount", header: "Gross", align: "right", render: (l) => inr(l.amount) },
+                { key: "tds", header: "TDS", align: "right", render: (l) => inr(l.tds ?? "0") }, { key: "net", header: "Net", align: "right", render: (l) => inr(l.net ?? l.amount) }]} /></section>
             {d.adjustments.length > 0 && <section><h3 className="mb-1 text-sm font-semibold">Adjustments</h3>{d.adjustments.map((a) => <p key={a.id} className="text-sm">{inr(a.amount)} — {a.reason}</p>)}</section>}
             {d.transactions.length > 0 && <section><h3 className="mb-1 text-sm font-semibold">Payments made</h3>{d.transactions.map((t) => <p key={t.id} className="text-sm">{t.paymentDate} · {inr(t.amount)} · {t.method.replace("_", " ")} · ref {t.referenceNumber}</p>)}</section>}
             {err && <p className="text-sm text-red-700">{err}</p>}
@@ -137,7 +142,7 @@ export default function PaymentsPage() {
               </form>)}
           </div>)}
       </Modal>
-      <Card className="mt-6 text-sm text-muted">Calculated = accepted hours × the rate in force on each work date. Approved = calculated + adjustments, frozen at approval. Paid = actual transactions recorded. Rate changes never alter approved statements.</Card>
+      <Card className="mt-6 text-sm text-muted">Gross = accepted hours × the rate in force on each work date. TDS is withheld from every contributor (rounded to the paisa per contributor line). Net approved = gross − TDS + adjustments, frozen at approval, and payments are made against it. Rate or TDS changes never alter existing statements.</Card>
     </div>
   );
 }

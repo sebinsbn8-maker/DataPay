@@ -1,0 +1,2 @@
+ALTER TABLE "industry_payment_statements" ADD COLUMN "tds_percent" numeric(5, 2) DEFAULT '0' NOT NULL;--> statement-breakpoint
+ALTER TABLE "industry_payment_statements" ADD COLUMN "tds_amount" numeric(14, 2) DEFAULT '0' NOT NULL;

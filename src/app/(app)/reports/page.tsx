@@ -9,9 +9,9 @@ type R = Record<string, string | number> & { id: string };
 const h = (k: string, header: string, money = false): Col<R> => ({ key: k, header, align: "right", sortValue: (r) => Number(r[k]), render: (r) => (money ? inr(r[k]) : k.endsWith("Pct") ? `${Number(r[k]).toFixed(1)}%` : hrs(r[k])) });
 const text = (k: string, header: string): Col<R> => ({ key: k, header, sortValue: (r) => String(r[k]), render: (r) => String(r[k] ?? "—") });
 const COLS: Record<Kind, Col<R>[]> = {
-  contributor: [text("contributor", "Contributor"), text("industry", "Industry"), h("target", "Target h"), h("submitted", "Submitted h"), h("accepted", "Accepted h"), h("rejected", "Rejected h"), h("acceptancePct", "Acceptance"), h("productivityPct", "Productivity"), h("rate", "Rate", true), h("payable", "Payable", true), text("paymentStatus", "Status")],
-  industry: [text("industry", "Industry"), text("project", "Project"), h("contributors", "Contrib."), h("target", "Target h"), h("submitted", "Submitted h"), h("accepted", "Accepted h"), h("rejected", "Rejected h"), h("acceptancePct", "Acceptance"), h("productivityPct", "Productivity"), h("payable", "Payable", true), h("paid", "Paid", true), h("outstanding", "Outstanding", true)],
-  project: [text("project", "Project"), h("industries", "Industries"), h("contributors", "Contrib."), h("submitted", "Submitted h"), h("accepted", "Accepted h"), h("rejected", "Rejected h"), h("acceptancePct", "Acceptance"), h("payable", "Total payment", true), h("paid", "Paid", true), h("remaining", "Remaining", true)],
+  contributor: [text("contributor", "Contributor"), text("industry", "Industry"), h("target", "Target h"), h("submitted", "Submitted h"), h("accepted", "Accepted h"), h("rejected", "Rejected h"), h("acceptancePct", "Acceptance"), h("productivityPct", "Productivity"), h("rate", "Rate", true), h("gross", "Gross", true), h("tds", "TDS", true), h("payable", "Net payable", true), text("paymentStatus", "Status")],
+  industry: [text("industry", "Industry"), text("project", "Project"), h("contributors", "Contrib."), h("target", "Target h"), h("submitted", "Submitted h"), h("accepted", "Accepted h"), h("rejected", "Rejected h"), h("acceptancePct", "Acceptance"), h("productivityPct", "Productivity"), h("gross", "Gross", true), h("tds", "TDS", true), h("payable", "Net payable", true), h("paid", "Paid", true), h("outstanding", "Outstanding", true)],
+  project: [text("project", "Project"), h("industries", "Industries"), h("contributors", "Contrib."), h("submitted", "Submitted h"), h("accepted", "Accepted h"), h("rejected", "Rejected h"), h("acceptancePct", "Acceptance"), h("gross", "Gross", true), h("tds", "TDS", true), h("payable", "Net payment", true), h("paid", "Paid", true), h("remaining", "Remaining", true)],
 };
 
 export default function ReportsPage() {
@@ -32,7 +32,7 @@ export default function ReportsPage() {
       <FilterBar value={f} onChange={setF} projects={projects} industries={industries} />
       {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
       <div className={cx(loading && "opacity-60")}><DataTable rows={rows} cols={COLS[kind]} searchText={(r) => Object.values(r).join(" ")} pageSize={15} empty="No data for the selected filters" /></div>
-      <Card className="mt-4 text-sm text-muted">Acceptance % = accepted ÷ client-reviewed submitted hours. Productivity % = submitted ÷ target hours. Payable uses the rate in force on each work date; billed hours keep their approved amount.</Card>
+      <Card className="mt-4 text-sm text-muted">Acceptance % = accepted ÷ client-reviewed submitted hours. Productivity % = submitted ÷ target hours. Gross uses the rate in force on each work date; TDS is withheld per contributor; Net payable = gross − TDS. Billed hours keep their approved amount.</Card>
     </div>
   );
 }
