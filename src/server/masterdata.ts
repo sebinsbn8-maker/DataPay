@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, or } from "drizzle-orm";
 import { getDb, schema as s } from "@/db";
 import { audit } from "./audit";
 import { nextCode } from "./sequence";
@@ -73,6 +73,34 @@ async function assertNoHistory(tx: Tx, col: "projectId" | "industryId", id: stri
   if ((await has(s.dailyWorkRecords)) || (await has(s.acceptanceRecords)) || (await has(s.industryPaymentStatements)))
     throw new HttpError(409, `This ${what} has recorded hours, QC or payments, so it can't be deleted. Set its status to ${what === "project" ? "Completed" : "Archived"} instead.`);
 }
+/** Force-delete support: remove hours + QC entries (and void statements) for a project / industry / contributor.
+ *  Refuses if any of those hours are already locked into a live payment statement. */
+async function purgeHistory(tx: Tx, col: "projectId" | "industryId" | "contributorId", id: string) {
+  const recs = await tx.select({ id: s.dailyWorkRecords.id }).from(s.dailyWorkRecords).where(eq(s.dailyWorkRecords[col], id));
+  const recIds = recs.map((r) => r.id);
+  if (recIds.length) {
+    const locked = await tx.select({ id: s.acceptanceRecords.id }).from(s.acceptanceRecords)
+      .where(and(inArray(s.acceptanceRecords.dailyRecordId, recIds), isNotNull(s.acceptanceRecords.statementId))).limit(1);
+    if (locked.length) throw new HttpError(409, "Some of these hours are already in a payment statement. Void that statement on the Payments page first, then delete.");
+  }
+  if (col !== "contributorId") {
+    const sts = await tx.select().from(s.industryPaymentStatements).where(eq(s.industryPaymentStatements[col], id));
+    if (sts.some((x) => x.status !== "VOID" || Number(x.paidAmount) > 0))
+      throw new HttpError(409, "There are payment statements for this. Void them on the Payments page first (statements with recorded payments can't be deleted).");
+    const stIds = sts.map((x) => x.id);
+    if (stIds.length) {
+      await tx.delete(s.paymentTransactions).where(inArray(s.paymentTransactions.statementId, stIds));
+      await tx.delete(s.paymentAdjustments).where(inArray(s.paymentAdjustments.statementId, stIds));
+      await tx.delete(s.industryPaymentStatements).where(inArray(s.industryPaymentStatements.id, stIds));
+    }
+  }
+  if (recIds.length) {
+    await tx.delete(s.acceptanceRecords).where(inArray(s.acceptanceRecords.dailyRecordId, recIds));
+    await tx.delete(s.workSessions).where(inArray(s.workSessions.dailyRecordId, recIds));
+    await tx.delete(s.dailyWorkRecords).where(inArray(s.dailyWorkRecords.id, recIds));
+  }
+  return recIds.length;
+}
 async function removeIndustries(tx: Tx, industryIds: string[]) {
   if (!industryIds.length) return;
   const asg = await tx.select({ id: s.projectContributors.id }).from(s.projectContributors).where(inArray(s.projectContributors.industryId, industryIds));
@@ -81,29 +109,31 @@ async function removeIndustries(tx: Tx, industryIds: string[]) {
   await tx.delete(s.projectContributors).where(inArray(s.projectContributors.industryId, industryIds));
   await tx.delete(s.industries).where(inArray(s.industries.id, industryIds));
 }
-export async function deleteIndustry(u: U, id: string) {
+export async function deleteIndustry(u: U, id: string, force = false) {
   const db = await getDb();
   return db.transaction(async (tx) => {
     const [before] = await tx.select().from(s.industries).where(eq(s.industries.id, id));
     if (!before) throw new HttpError(404, "Industry not found");
-    await assertNoHistory(tx, "industryId", id, "industry");
+    let purged = 0;
+    if (force) purged = await purgeHistory(tx, "industryId", id); else await assertNoHistory(tx, "industryId", id, "industry");
     await removeIndustries(tx, [id]);
-    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "industry", entityId: id, before: strip(before) });
+    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "industry", entityId: id, before: strip(before), note: force ? `FORCE: ${purged} daily records removed` : undefined });
     return { deleted: true };
   });
 }
-export async function deleteProject(u: U, id: string) {
+export async function deleteProject(u: U, id: string, force = false) {
   const db = await getDb();
   return db.transaction(async (tx) => {
     const [before] = await tx.select().from(s.projects).where(eq(s.projects.id, id));
     if (!before) throw new HttpError(404, "Project not found");
-    await assertNoHistory(tx, "projectId", id, "project");
+    let purged = 0;
+    if (force) purged = await purgeHistory(tx, "projectId", id); else await assertNoHistory(tx, "projectId", id, "project");
     const inds = await tx.select({ id: s.industries.id }).from(s.industries).where(eq(s.industries.projectId, id));
     await removeIndustries(tx, inds.map((i) => i.id));
     await tx.delete(s.paymentRates).where(eq(s.paymentRates.projectId, id));
     await tx.delete(s.projectContributors).where(eq(s.projectContributors.projectId, id));
     await tx.delete(s.projects).where(eq(s.projects.id, id));
-    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "project", entityId: id, before: strip(before), note: `${inds.length} industries removed` });
+    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "project", entityId: id, before: strip(before), note: `${inds.length} industries removed${force ? `; FORCE: ${purged} daily records removed` : ""}` });
     return { deleted: true };
   });
 }
@@ -145,21 +175,24 @@ export async function updateContributor(u: U, id: string, input: Record<string, 
     return after;
   });
 }
-export async function deleteContributor(u: U, id: string) {
+export async function deleteContributor(u: U, id: string, force = false) {
   const db = await getDb();
   return db.transaction(async (tx) => {
     const [before] = await tx.select().from(s.contributors).where(eq(s.contributors.id, id));
     if (!before) throw new HttpError(404, "Contributor not found");
-    const [w] = await tx.select({ id: s.dailyWorkRecords.id }).from(s.dailyWorkRecords).where(eq(s.dailyWorkRecords.contributorId, id)).limit(1);
-    const [a] = await tx.select({ id: s.acceptanceRecords.id }).from(s.acceptanceRecords).where(eq(s.acceptanceRecords.contributorId, id)).limit(1);
-    if (w || a) throw new HttpError(409, "This contributor has recorded hours or QC, so they can't be deleted. Set them to Inactive instead.");
+    let purged = 0;
+    if (force) purged = await purgeHistory(tx, "contributorId", id);
+    else {
+      const [w] = await tx.select({ id: s.dailyWorkRecords.id }).from(s.dailyWorkRecords).where(eq(s.dailyWorkRecords.contributorId, id)).limit(1);
+      if (w) throw new HttpError(409, "This contributor has recorded hours or QC, so they can't be deleted. Set them to Inactive instead.");
+    }
     const asg = await tx.select({ id: s.projectContributors.id }).from(s.projectContributors).where(eq(s.projectContributors.contributorId, id));
     if (asg.length) await tx.delete(s.paymentRates).where(inArray(s.paymentRates.assignmentId, asg.map((x) => x.id)));
     await tx.delete(s.projectContributors).where(eq(s.projectContributors.contributorId, id));
     // a linked login is switched off rather than deleted (it may be referenced by audit history)
     await tx.update(s.users).set({ isActive: false, contributorId: null, updatedAt: new Date() } as never).where(eq(s.users.contributorId, id));
     await tx.delete(s.contributors).where(eq(s.contributors.id, id));
-    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "contributor", entityId: id, before: strip(before) });
+    await audit(tx as never, { userId: u.id, action: "DELETE", entity: "contributor", entityId: id, before: strip(before), note: force ? `FORCE: ${purged} daily records removed` : undefined });
     return { deleted: true };
   });
 }

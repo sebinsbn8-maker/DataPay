@@ -206,3 +206,17 @@ export async function api<T = unknown>(url: string, init?: RequestInit & { json?
   if (!res.ok) throw new Error((data as { error?: string }).error ?? `Request failed (${res.status})`);
   return data as T;
 }
+
+/** Delete with confirmation. If the server says history exists, offers a typed-DELETE "delete everything" step. */
+export async function deleteEntity(url: string, confirmText: string): Promise<boolean> {
+  if (!confirm(confirmText)) return false;
+  try { await api(url, { method: "DELETE" }); return true; }
+  catch (e) {
+    const m = (e as Error).message;
+    if (!/recorded hours/i.test(m)) { alert(m); return false; }
+    const typed = prompt(`${m}\n\nTo permanently delete it TOGETHER WITH all its recorded hours and QC entries, type DELETE below. This cannot be undone.`);
+    if (typed?.trim() !== "DELETE") return false;
+    try { await api(`${url}?force=1`, { method: "DELETE" }); return true; }
+    catch (e2) { alert((e2 as Error).message); return false; }
+  }
+}

@@ -209,6 +209,21 @@ describe("deleting projects and industries", () => {
     const [withHours] = await db.select().from(s.dailyWorkRecords).limit(1);
     await expect(deleteContributor(admin, withHours.contributorId)).rejects.toMatchObject({ status: 409 });
   });
+  it("force-deletes a contributor with unbilled hours, but not when hours are in a statement", async () => {
+    const p = await createProject(admin, { name: "Force P", clientName: "X", status: "ACTIVE" });
+    const i = await createIndustry(admin, { projectId: p.id, name: "Force I", status: "ACTIVE" });
+    const c = await createContributor(admin, { fullName: "Force C", email: "force@x.io", status: "ACTIVE" });
+    const a = await createAssignment(admin, { contributorId: c.id, projectId: p.id, industryId: i.id, dailyTargetHours: 8, weeklyTargetHours: 40, monthlyTargetHours: 160 });
+    await saveEntries(admin, "2026-11-12", [{ assignmentId: a.id, sessions: [{ hours: 5 }], submittedHours: 5 }]);
+    await expect(deleteContributor(admin, c.id)).rejects.toMatchObject({ status: 409 });
+    await deleteContributor(admin, c.id, true);
+    const db = await getDb();
+    expect((await db.select().from(s.contributors)).some((x) => x.id === c.id)).toBe(false);
+    expect((await db.select().from(s.dailyWorkRecords)).some((x) => x.contributorId === c.id)).toBe(false);
+    await deleteProject(admin, p.id, true);   // project now empty of history, still deletable with force
+    // hours locked in a live statement block even a forced delete
+    await expect(deleteIndustry(admin, mfg, true)).rejects.toMatchObject({ status: 409 });
+  });
   it("refuses to delete a project or industry that has hours or payments", async () => {
     await expect(deleteProject(admin, projectId)).rejects.toMatchObject({ status: 409 });
     await expect(deleteIndustry(admin, mfg)).rejects.toMatchObject({ status: 409 });

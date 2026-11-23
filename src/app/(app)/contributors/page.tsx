@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api } from "@/components/ui";
+import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api, deleteEntity } from "@/components/ui";
 import { hrs, useApi, useLookups } from "@/components/hooks";
 
 type Asg = { id: string; projectId: string; industryId: string; projectName: string; industryName: string; status: string; dailyTargetHours: string; weeklyTargetHours: string; monthlyTargetHours: string };
@@ -31,9 +31,7 @@ export default function ContributorsPage() {
   };
 
   async function removeContributor(c: { id: string; fullName: string }) {
-    if (!confirm(`Delete contributor "${c.fullName}"? Their assignments and rates are removed, and any login for them is switched off. This cannot be undone.`)) return;
-    try { await api(`/api/contributors/${c.id}`, { method: "DELETE" }); setSel(null); reload(); }
-    catch (e) { alert((e as Error).message); }
+    if (await deleteEntity(`/api/contributors/${c.id}`, `Delete contributor "${c.fullName}"? Their assignments and rates are removed, and any login for them is switched off. This cannot be undone.`)) { setSel(null); reload(); }
   }
 
   return (

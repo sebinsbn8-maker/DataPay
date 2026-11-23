@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Badge, Button, Card, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api } from "@/components/ui";
+import { Badge, Button, Card, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api, deleteEntity } from "@/components/ui";
 import { useApi, type Project } from "@/components/hooks";
 
 type User = { id: string; name: string; role: string };
@@ -25,10 +25,7 @@ export default function ProjectsPage() {
     } catch (e) { setErr((e as Error).message); }
   }
   async function removeProject(p: { id: string; name: string }) {
-    if (!confirm(`Delete project "${p.name}"? Its industries, contributor assignments and rates are removed too. This cannot be undone.`)) return;
-    setErr("");
-    try { await api(`/api/projects/${p.id}`, { method: "DELETE" }); setEdit(null); reload(); }
-    catch (e) { const m = (e as Error).message; setErr(m); alert(m); }
+    if (await deleteEntity(`/api/projects/${p.id}`, `Delete project "${p.name}"? Its industries, contributor assignments and rates are removed too. This cannot be undone.`)) { setEdit(null); reload(); }
   }
   const remove = () => edit?.id && removeProject({ id: edit.id, name: edit.name });
   const tone = (s: string) => (s === "ACTIVE" ? "green" : s === "PAUSED" ? "amber" : "gray") as "green";

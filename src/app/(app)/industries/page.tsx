@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
-import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api } from "@/components/ui";
+import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api, deleteEntity } from "@/components/ui";
 import { useApi, useLookups, type Industry } from "@/components/hooks";
 
 type User = { id: string; name: string; role: string };
@@ -30,10 +30,7 @@ export default function IndustriesPage() {
     catch (e) { setErr((e as Error).message); }
   }
   async function removeIndustry(i: { id: string; name: string }) {
-    if (!confirm(`Delete industry "${i.name}"? This also removes its contributor assignments and rates. This cannot be undone.`)) return;
-    setErr("");
-    try { await api(`/api/industries/${i.id}`, { method: "DELETE" }); setEdit(null); reload(); }
-    catch (e) { const m = (e as Error).message; setErr(m); alert(m); }
+    if (await deleteEntity(`/api/industries/${i.id}`, `Delete industry "${i.name}"? This also removes its contributor assignments and rates. This cannot be undone.`)) { setEdit(null); reload(); }
   }
   const remove = () => edit?.id && removeIndustry({ id: edit.id, name: edit.name });
   async function saveRate() {

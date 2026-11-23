@@ -8,8 +8,8 @@ export const PATCH = (req: Request, ctx: { params: Promise<{ id: string }> }) =>
   return updateIndustry(u, id, industryInput.partial().parse(await req.json()));
 });
 
-export const DELETE = (_req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
+export const DELETE = (req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
   const u = await requirePermission("industries:write");
   const { id } = await ctx.params;
-  return deleteIndustry(u, id);
+  return deleteIndustry(u, id, new URL(req.url).searchParams.get("force") === "1");
 });

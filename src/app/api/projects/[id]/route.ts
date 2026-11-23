@@ -10,8 +10,8 @@ export const PATCH = (req: Request, ctx: { params: Promise<{ id: string }> }) =>
   return updateProject(u, id, parsed as Record<string, unknown>);
 });
 
-export const DELETE = (_req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
+export const DELETE = (req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
   const u = await requirePermission("projects:write");
   const { id } = await ctx.params;
-  return deleteProject(u, id);
+  return deleteProject(u, id, new URL(req.url).searchParams.get("force") === "1");
 });

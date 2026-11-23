@@ -14,8 +14,8 @@ export const PATCH = (req: Request, ctx: { params: Promise<{ id: string }> }) =>
   return updateContributor(u, id, contributorInput.partial().parse(await req.json()));
 });
 
-export const DELETE = (_req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
+export const DELETE = (req: Request, ctx: { params: Promise<{ id: string }> }) => handle(async () => {
   const u = await requirePermission("contributors:write");
   const { id } = await ctx.params;
-  return deleteContributor(u, id);
+  return deleteContributor(u, id, new URL(req.url).searchParams.get("force") === "1");
 });
