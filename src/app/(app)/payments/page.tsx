@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useSession } from "next-auth/react";
-import { Badge, Button, Card, DataTable, Field, Input, Modal, PageHeader, Select, Stat, Textarea, api } from "@/components/ui";
+import { Badge, Button, Card, DataTable, Field, Input, Modal, PageHeader, Select, Stat, Textarea, api, downloadFile } from "@/components/ui";
 import { FilterBar, hrs, inr, monthStart, today, toQuery, useApi, useLookups, type FilterState } from "@/components/hooks";
 
 type Ov = { industryId: string; industryName: string; projectName: string; submitted: string; accepted: string; rejected: string; pending: string; payable: string; tds: string; gross: string; unbilled: string; paid: string; remaining: string; status: string };
@@ -115,6 +115,7 @@ export default function PaymentsPage() {
                 { key: "tds", header: "TDS", align: "right", render: (l) => inr(l.tds ?? "0") }, { key: "net", header: "Net", align: "right", render: (l) => inr(l.net ?? l.amount) }]} /></section>
             {d.adjustments.length > 0 && <section><h3 className="mb-1 text-sm font-semibold">Adjustments</h3>{d.adjustments.map((a) => <p key={a.id} className="text-sm">{inr(a.amount)} — {a.reason}</p>)}</section>}
             {d.transactions.length > 0 && <section><h3 className="mb-1 text-sm font-semibold">Payments made</h3>{d.transactions.map((t) => <p key={t.id} className="text-sm">{t.paymentDate} · {inr(t.amount)} · {t.method.replace("_", " ")} · ref {t.referenceNumber}</p>)}</section>}
+            {d.status === "PAID" ? <Slips id={d.id} /> : d.status !== "VOID" && <p className="text-xs text-muted">Payment acknowledgement slips become available once this statement is fully paid.</p>}
             {err && <p className="text-sm text-red-700">{err}</p>}
             {isAdmin && d.status !== "VOID" && (
               <div className="flex flex-wrap gap-2 border-t border-line pt-3">
@@ -144,5 +145,27 @@ export default function PaymentsPage() {
       </Modal>
       <Card className="mt-6 text-sm text-muted">Gross = accepted hours × the rate in force on each work date. TDS is withheld from every contributor (rounded to the paisa per contributor line). Net approved = gross − TDS + adjustments, frozen at approval, and payments are made against it. Rate or TDS changes never alter existing statements.</Card>
     </div>
+  );
+}
+
+type SlipRow = { contributorId: string; code: string; name: string; gross: string; tds: string; net: string; hasSignature: boolean };
+function Slips({ id }: { id: string }) {
+  const s = useApi<{ recipients: SlipRow[] }>(`/api/payments/${id}/slips`);
+  const rows = s.data?.recipients ?? [];
+  return (
+    <section>
+      <div className="mb-1 flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold">Payment acknowledgement slips</h3>
+        {rows.length > 1 && <Button variant="outline" onClick={() => downloadFile(`/api/payments/${id}/slip`)}>Download all (PDF)</Button>}
+      </div>
+      <div className="divide-y divide-line rounded-xl border border-line">
+        {rows.map((r) => (
+          <div key={r.contributorId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
+            <span><b>{r.name}</b> <span className="text-muted">{r.code} · Net {inr(r.net)}</span> {r.hasSignature ? <span className="text-emerald-700">✓ signed</span> : <span className="text-amber-700">no signature on file</span>}</span>
+            <Button variant="outline" onClick={() => downloadFile(`/api/payments/${id}/slip?contributorId=${r.contributorId}`)}>Download slip</Button>
+          </div>))}
+        {rows.length === 0 && <p className="px-3 py-2 text-sm text-muted">{s.data ? "No recipients." : "Loading…"}</p>}
+      </div>
+    </section>
   );
 }

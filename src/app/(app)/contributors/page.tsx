@@ -4,9 +4,10 @@ import { Plus, Trash2 } from "lucide-react";
 import { useSession } from "next-auth/react";
 import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, Textarea, api, deleteEntity } from "@/components/ui";
 import { hrs, useApi, useLookups } from "@/components/hooks";
+import { SignaturePanel } from "@/components/SignaturePanel";
 
 type Asg = { id: string; projectId: string; industryId: string; projectName: string; industryName: string; status: string; dailyTargetHours: string; weeklyTargetHours: string; monthlyTargetHours: string };
-type Con = { id: string; code: string; fullName: string; email: string; phone: string | null; joiningDate: string | null; status: string; notes: string | null; assignments: Asg[] };
+type Con = { id: string; code: string; fullName: string; email: string; phone: string | null; joiningDate: string | null; status: string; notes: string | null; hasSignature?: boolean; assignments: Asg[] };
 type Hist = { id: string; date: string; projectName: string; industryName: string; target: string; actual: string; submitted: string; accepted: string | null; pct: string | null; qc: string | null }[];
 
 const blank = { fullName: "", email: "", phone: "", joiningDate: "", status: "ACTIVE", notes: "" };
@@ -60,6 +61,7 @@ export default function ContributorsPage() {
                 <Button variant="outline" onClick={() => run(() => api(`/api/contributors/${sel.id}`, { method: "PATCH", json: { status: sel.status === "ACTIVE" ? "INACTIVE" : "ACTIVE" } }))}>{sel.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
                 <Button variant="danger" onClick={() => removeContributor(sel)}>Delete</Button></span>}
             </div>
+            <section><h3 className="mb-2 text-sm font-semibold">E-signature</h3><SignaturePanel contributorId={sel.id} canEdit={isAdmin} /></section>
             <section>
               <div className="mb-2 flex items-center justify-between"><h3 className="font-semibold">Assignments &amp; targets</h3>
                 {isAdmin && <Button variant="outline" onClick={() => setAsg({ ...asgBlank, projectId: projects[0]?.id ?? "" })}><Plus size={14} />Assign</Button>}</div>

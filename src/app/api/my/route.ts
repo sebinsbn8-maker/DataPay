@@ -20,6 +20,7 @@ export const GET = (req: Request) => handle(async () => {
   const t = totals(facts);
   return {
     assignments: asg,
+    contributorId: u.contributorId ?? null,
     money: { gross: t.amount.toString(), tds: t.tds.toString(), net: t.net.toString(), tdsPercent: facts[0]?.tdsPercent ?? "0" },
     records: facts.sort((a, b) => (a.date < b.date ? 1 : -1)).map((f) => ({
       id: f.recordId, date: f.date, project: f.projectName, industry: f.industryName, target: f.target, actual: f.actual, submitted: f.submitted, pct: f.pct, accepted: f.accepted, rate: f.rate, amount: f.amount,

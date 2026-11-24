@@ -6,7 +6,7 @@ export async function audit(
   db: Tx,
   entry: {
     userId?: string | null;
-    action: "CREATE" | "UPDATE" | "DELETE" | "ARCHIVE" | "APPROVE" | "PAYMENT" | "ADJUST" | "RATE_CHANGE" | "QC_CHANGE" | "LOGIN" | "ALLOCATE";
+    action: "CREATE" | "UPDATE" | "DELETE" | "ARCHIVE" | "APPROVE" | "PAYMENT" | "ADJUST" | "RATE_CHANGE" | "QC_CHANGE" | "LOGIN" | "ALLOCATE" | "SIGNATURE" | "SLIP";
     entity: string;
     entityId?: string | null;
     before?: unknown;

@@ -261,3 +261,13 @@ export const counters = pgTable("counters", {
   key: varchar("key", { length: 40 }).primaryKey(),
   value: integer("value").notNull().default(0),
 });
+
+/* ---------- contributor e-signatures (printed on payment acknowledgement slips) ---------- */
+export const contributorSignatures = pgTable("contributor_signatures", {
+  contributorId: uuid("contributor_id").primaryKey().references(() => contributors.id),
+  mime: varchar("mime", { length: 20 }).notNull(),   // image/png | image/jpeg
+  data: text("data").notNull(),                       // base64 (validated, max 400 KB)
+  bytes: integer("bytes").notNull(),
+  updatedBy: uuid("updated_by").references(() => users.id),
+  updatedAt: updatedAt(),
+});

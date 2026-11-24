@@ -220,3 +220,15 @@ export async function deleteEntity(url: string, confirmText: string): Promise<bo
     catch (e2) { alert((e2 as Error).message); return false; }
   }
 }
+
+/** Download a file from an API URL; shows the server's message if it refuses. */
+export async function downloadFile(url: string, fallbackName = "download") {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) { const j = await res.json().catch(() => null); alert(j?.error ?? "Could not download the file"); return; }
+    const name = /filename="([^"]+)"/.exec(res.headers.get("Content-Disposition") ?? "")?.[1] ?? fallbackName;
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(await res.blob()); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  } catch { alert("Could not download the file"); }
+}

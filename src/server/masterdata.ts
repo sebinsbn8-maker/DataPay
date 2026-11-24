@@ -154,7 +154,8 @@ export async function listContributors(u: U) {
     .innerJoin(s.industries, eq(s.industries.id, s.projectContributors.industryId));
   const visibleAsg = scope ? asg.filter((a) => scope.industryIds.has(a.industryId) || scope.managedProjectIds.has(a.projectId)) : asg;
   const visibleCons = scope ? cons.filter((c) => visibleAsg.some((a) => a.contributorId === c.id)) : cons;
-  return visibleCons.map((c) => ({ ...c, assignments: visibleAsg.filter((a) => a.contributorId === c.id) }));
+  const sigs = new Set((await db.select({ id: s.contributorSignatures.contributorId }).from(s.contributorSignatures)).map((x) => x.id));
+  return visibleCons.map((c) => ({ ...c, hasSignature: sigs.has(c.id), assignments: visibleAsg.filter((a) => a.contributorId === c.id) }));
 }
 export async function createContributor(u: U, input: Record<string, unknown>) {
   const db = await getDb();
@@ -191,6 +192,7 @@ export async function deleteContributor(u: U, id: string, force = false) {
     await tx.delete(s.projectContributors).where(eq(s.projectContributors.contributorId, id));
     // a linked login is switched off rather than deleted (it may be referenced by audit history)
     await tx.update(s.users).set({ isActive: false, contributorId: null, updatedAt: new Date() } as never).where(eq(s.users.contributorId, id));
+    await tx.delete(s.contributorSignatures).where(eq(s.contributorSignatures.contributorId, id));
     await tx.delete(s.contributors).where(eq(s.contributors.id, id));
     await audit(tx as never, { userId: u.id, action: "DELETE", entity: "contributor", entityId: id, before: strip(before), note: force ? `FORCE: ${purged} daily records removed` : undefined });
     return { deleted: true };

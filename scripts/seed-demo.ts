@@ -88,8 +88,8 @@ function workdays(from: string, to: string) {
   await recordPayment(admin, m.id, { amount: 20000, paymentDate: "2026-11-14", referenceNumber: "NEFT-884201", method: "BANK_TRANSFER", remarks: "Advance" });
   await createStatement(admin, { industryId: byName("Construction"), from: "2026-11-02", to: "2026-11-09" });
   const f = await createStatement(admin, { industryId: byName("Food & Hospitality"), from: "2026-11-02", to: "2026-11-09" });
-  await approveStatement(admin, f.id);
-  await recordPayment(admin, f.id, { amount: Number(f.calculatedAmount), paymentDate: "2026-11-15", referenceNumber: "UPI-55120", method: "UPI" });
+  const fa = await approveStatement(admin, f.id);
+  await recordPayment(admin, f.id, { amount: Number(fa.approvedAmount), paymentDate: "2026-11-15", referenceNumber: "UPI-55120", method: "UPI" });
 
   console.log(`Demo data ready.\n  Admin:       ${adminEmail} / ${adminPass}\n  Manager:     manager@datapay.local / DemoManager#2026\n  Contributor: contributor@datapay.local / DemoContrib#2026`);
   process.exit(0);

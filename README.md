@@ -142,6 +142,9 @@ Verified here: 25 automated tests (including the spec's worked examples), a prod
 
 10% TDS is withheld from **every contributor's** earnings (set `TDS_PERCENT` to change the rate; default 10).
 
+### E-signatures and payment acknowledgement slips
+Each contributor has an e-signature (upload a PNG/JPG or draw one) managed by an admin on the Contributors page or by the contributor on **My work**. Once a statement is **fully paid**, admins can download a *Payment Acknowledgement Slip* (PDF, one page per contributor, with payment details, TDS, amount in words, transactions and the signature) from the statement on the Payments page; contributors download their own from My work. Set `COMPANY_NAME` to change the name printed on slips.
+
 - **Gross** = accepted hours × hourly rate. **TDS** = gross × TDS %, rounded to the paisa **per contributor, per rate line** (same rule as the gross amounts). **Net payable** = gross − TDS.
 - The TDS % and amount are **frozen on each payment statement** when it is created, so later rate or TDS changes never alter existing statements. Statements created before TDS existed keep 0%.
 - **Net approved** = gross − TDS + adjustments. Payments are recorded against the net amount. Manual adjustments are not subject to TDS.
