@@ -250,3 +250,29 @@ describe("deleting projects and industries", () => {
     await expect(deleteIndustry(admin, mfg)).rejects.toMatchObject({ status: 409 });
   });
 });
+
+describe("manual accepted / rejected hours", () => {
+  it("lets accepted or rejected hours be typed directly; the other side and the % follow", async () => {
+    const p = await createProject(admin, { name: "QC edit", clientName: "X", status: "ACTIVE" });
+    const i = await createIndustry(admin, { projectId: p.id, name: "QC ind", status: "ACTIVE" });
+    const c = await createContributor(admin, { fullName: "QC C", email: "qcc@x.io", status: "ACTIVE" });
+    const a = await createAssignment(admin, { contributorId: c.id, projectId: p.id, industryId: i.id, dailyTargetHours: 8, weeklyTargetHours: 40, monthlyTargetHours: 160 });
+    await saveEntries(admin, "2026-11-13", [{ assignmentId: a.id, sessions: [{ hours: 10 }], submittedHours: 10 }]);
+    const row = async () => (await listQc({ industryId: i.id }))[0];
+    const id = (await row()).id;
+    await setAcceptance(admin, [{ id, acceptedHours: 7.3 }]);
+    let r = await row();
+    expect([Number(r.accepted), Number(r.rejected), Number(r.pct)]).toEqual([7.3, 2.7, 73]);
+    expect(r.qcStatus).toBe("PARTIALLY_ACCEPTED");
+    await setAcceptance(admin, [{ id, rejectedHours: 4 }]);
+    r = await row();
+    expect([Number(r.accepted), Number(r.rejected), Number(r.pct)]).toEqual([6, 4, 60]);
+    await setAcceptance(admin, [{ id, acceptedHours: 10 }]);
+    expect((await row()).qcStatus).toBe("FULLY_ACCEPTED");
+    await setAcceptance(admin, [{ id, rejectedHours: 10 }]);
+    expect((await row()).qcStatus).toBe("REJECTED");
+    await expect(setAcceptance(admin, [{ id, acceptedHours: 10.5 }])).rejects.toThrow(/between 0 and the submitted/);
+    await expect(setAcceptance(admin, [{ id, rejectedHours: -1 }])).rejects.toThrow();
+    await expect(setAcceptance(admin, [{ id, acceptedHours: 5, acceptancePct: 50 }])).rejects.toThrow(/exactly one/);
+  });
+});

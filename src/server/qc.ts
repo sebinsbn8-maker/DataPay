@@ -5,7 +5,8 @@ import { HttpError } from "./guard";
 import { D, acceptedHours, rejectedHours, deriveQcStatus, validatePct, allocateIndustryAcceptance, type QcStatusValue } from "@/lib/calc";
 
 type U = { id: string };
-export type QcUpdate = { id: string; acceptancePct: number | null; qcStatus?: QcStatusValue; qcReference?: string | null };
+/** Give ONE of: acceptancePct (null = back to pending), acceptedHours, or rejectedHours. Hours edits are stored exactly as typed. */
+export type QcUpdate = { id: string; acceptancePct?: number | null; acceptedHours?: number; rejectedHours?: number; qcStatus?: QcStatusValue; qcReference?: string | null };
 
 export async function listQc(f: { from?: string; to?: string; projectId?: string; industryId?: string; contributorId?: string; status?: string }) {
   const db = await getDb();
@@ -37,17 +38,31 @@ export async function setAcceptance(u: U, updates: QcUpdate[]) {
       const [rec] = await tx.select().from(s.acceptanceRecords).where(eq(s.acceptanceRecords.id, up.id)).for("update");
       if (!rec) throw new HttpError(404, "QC record not found");
       if (rec.statementId) throw new HttpError(409, "This record is locked in a payment statement. Void the statement before changing QC.");
-      const pct = up.acceptancePct;
-      if (pct !== null) validatePct(pct);
-      const accepted = pct === null ? D(0) : acceptedHours(rec.submittedHours, pct);
-      const rejected = pct === null ? D(0) : rejectedHours(rec.submittedHours, accepted);
+      const given = [up.acceptancePct !== undefined, up.acceptedHours !== undefined, up.rejectedHours !== undefined].filter(Boolean).length;
+      if (given !== 1) throw new HttpError(400, "Provide exactly one of acceptance %, accepted hours or rejected hours");
+      const sub = D(rec.submittedHours);
+      let pct: number | string | null, accepted: ReturnType<typeof D>, rejected: ReturnType<typeof D>;
+      if (up.acceptedHours !== undefined || up.rejectedHours !== undefined) {
+        // manual hours: the typed hours are authoritative, the percentage is derived from them
+        const acc = up.acceptedHours !== undefined ? D(up.acceptedHours) : sub.minus(up.rejectedHours as number);
+        if (acc.isNaN() || acc.lt(0) || acc.gt(sub)) throw new HttpError(400, `Accepted and rejected hours must each be between 0 and the submitted ${sub.toString()} h and add up to it`);
+        accepted = acc.toDecimalPlaces(6); rejected = sub.minus(accepted);
+        if (sub.isZero() || accepted.isZero()) pct = 0;
+        else if (accepted.eq(sub)) pct = 100;
+        else pct = Math.min(99.9999, Math.max(0.0001, accepted.div(sub).mul(100).toDecimalPlaces(4).toNumber()));
+      } else {
+        pct = up.acceptancePct as number | null;
+        if (pct !== null) validatePct(pct);
+        accepted = pct === null ? D(0) : acceptedHours(rec.submittedHours, pct);
+        rejected = pct === null ? D(0) : rejectedHours(rec.submittedHours, accepted);
+      }
       const status = up.qcStatus === "RESUBMITTED" ? "RESUBMITTED" : deriveQcStatus(pct);
       const [after] = await tx.update(s.acceptanceRecords).set({
         acceptancePct: pct === null ? null : String(pct), acceptedHours: accepted.toString(), rejectedHours: rejected.toString(),
         qcStatus: status, qcReference: up.qcReference ?? rec.qcReference, source: "INDIVIDUAL", allocationMethod: null, updatedBy: u.id, updatedAt: new Date(),
       }).where(eq(s.acceptanceRecords.id, up.id)).returning();
       await audit(tx as never, { userId: u.id, action: "QC_CHANGE", entity: "acceptance_record", entityId: rec.id,
-        before: { pct: rec.acceptancePct, accepted: rec.acceptedHours, status: rec.qcStatus }, after: { pct: after.acceptancePct, accepted: after.acceptedHours, status: after.qcStatus }, note: up.qcReference ?? undefined });
+        before: { pct: rec.acceptancePct, accepted: rec.acceptedHours, rejected: rec.rejectedHours, status: rec.qcStatus }, after: { pct: after.acceptancePct, accepted: after.acceptedHours, rejected: after.rejectedHours, status: after.qcStatus }, note: up.qcReference ?? (up.acceptedHours !== undefined || up.rejectedHours !== undefined ? "manual hours edit" : undefined) });
       out.push(after);
     }
     return out;
