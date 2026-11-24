@@ -150,16 +150,22 @@ export async function recordPayment(u: U, id: string, p: { amount: number; payme
 }
 
 /** Void a statement that has no payments: releases its hours so QC can be corrected and billing redone. */
-export async function voidStatement(u: U, id: string, reason: string) {
+export async function voidStatement(u: U, id: string, reason: string, force = false) {
   if (!reason.trim()) throw new HttpError(400, "A reason is required to void a statement");
   const db = await getDb();
   return db.transaction(async (tx) => {
     const [st] = await tx.select().from(s.industryPaymentStatements).where(eq(s.industryPaymentStatements.id, id)).for("update");
     if (!st) throw new HttpError(404, "Statement not found");
     if (st.status === "VOID") throw new HttpError(409, "Already void");
-    if (D(st.paidAmount).gt(0)) throw new HttpError(409, "A statement with recorded payments cannot be voided");
+    const paid = D(st.paidAmount).gt(0);
+    if (paid && !force) throw new HttpError(409, "A statement with recorded payments cannot be voided");
+    if (paid) { // admin override: the payment records are removed (and the audit log keeps what they were)
+      const txns = await tx.select().from(s.paymentTransactions).where(eq(s.paymentTransactions.statementId, id));
+      await audit(tx as never, { userId: u.id, action: "DELETE", entity: "payment_transactions", entityId: id, before: { paid: st.paidAmount, transactions: txns.map((x) => ({ amount: x.amount, date: x.paymentDate, ref: x.referenceNumber, method: x.method })) }, note: `Force void: ${reason}` });
+      await tx.delete(s.paymentTransactions).where(eq(s.paymentTransactions.statementId, id));
+    }
     await tx.update(s.acceptanceRecords).set({ statementId: null, appliedRate: null, payableAmount: null, updatedAt: new Date() }).where(eq(s.acceptanceRecords.statementId, id));
-    const [after] = await tx.update(s.industryPaymentStatements).set({ status: "VOID", approvedAmount: "0", updatedAt: new Date(), remarks: `${st.remarks ?? ""}\nVOID: ${reason}`.trim() }).where(eq(s.industryPaymentStatements.id, id)).returning();
+    const [after] = await tx.update(s.industryPaymentStatements).set({ status: "VOID", approvedAmount: "0", paidAmount: "0", updatedAt: new Date(), remarks: `${st.remarks ?? ""}\nVOID: ${reason}`.trim() }).where(eq(s.industryPaymentStatements.id, id)).returning();
     await audit(tx as never, { userId: u.id, action: "UPDATE", entity: "payment_statement", entityId: id, before: { status: st.status }, after: { status: "VOID" }, note: reason });
     return after;
   });

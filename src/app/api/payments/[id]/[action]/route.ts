@@ -14,7 +14,7 @@ export const POST = (req: Request, ctx: { params: Promise<{ id: string; action: 
       return recordPayment(u, id, b);
     }
     case "adjust": { const b = z.object({ amount: z.coerce.number(), reason: z.string().min(3) }).parse(body); return addAdjustment(u, id, b.amount, b.reason); }
-    case "void": return voidStatement(u, id, z.object({ reason: z.string().min(3) }).parse(body).reason);
+    case "void": { const b = z.object({ reason: z.string().min(3), force: z.boolean().optional() }).parse(body); return voidStatement(u, id, b.reason, b.force); }
     default: throw new HttpError(404, "Unknown action");
   }
 });

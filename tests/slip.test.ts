@@ -89,3 +89,14 @@ describe("amount in words", () => {
     expect(inrWords(125000)).toMatch(/One Lakh Twenty Five Thousand/i);
   });
 });
+
+describe("force void of a paid statement", () => {
+  it("needs the override, then releases hours and clears payments", async () => {
+    const { voidStatement } = await import("../src/server/payments");
+    await expect(voidStatement(admin, stmt, "test data")).rejects.toThrow(/cannot be voided/);
+    const r = await voidStatement(admin, stmt, "test data", true);
+    expect(r.status).toBe("VOID");
+    expect(r.paidAmount).toBe("0.00");
+    await expect(deleteContributor(admin, ca, true)).resolves.toBeDefined();
+  });
+});
