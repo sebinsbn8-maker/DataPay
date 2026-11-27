@@ -26,7 +26,7 @@ export function RippleListener() {
     if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const layer = document.createElement("div");
     layer.id = "wd-layer"; layer.setAttribute("aria-hidden", "true");
-    layer.innerHTML = '<svg width="0" height="0" style="position:absolute"><filter id="wd-liquid" x="-25%" y="-25%" width="150%" height="150%"><feTurbulence type="fractalNoise" baseFrequency="0.018 0.022" numOctaves="1" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="9" xChannelSelector="R" yChannelSelector="G"/></filter></svg>';
+    layer.innerHTML = '<svg width="0" height="0" style="position:absolute"><filter id="wd-liquid" x="-25%" y="-25%" width="150%" height="150%"><feTurbulence type="fractalNoise" baseFrequency="0.04 0.05" numOctaves="1" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="3" xChannelSelector="R" yChannelSelector="G"/></filter></svg>';
     document.body.appendChild(layer);
     const drops = new Set<HTMLElement>();
 
@@ -39,9 +39,9 @@ export function RippleListener() {
       if (drops.size >= MAX_DROPS) drops.values().next().value?.remove();
       const d = document.createElement("div");
       d.className = "wd"; d.style.left = `${x}px`; d.style.top = `${y}px`;
-      d.innerHTML = "<b></b><i></i><i></i><i></i>";
+      d.innerHTML = "<b></b><i></i><i></i>";
       layer.appendChild(d); drops.add(d);
-      window.setTimeout(() => { d.remove(); drops.delete(d); }, 1100);
+      window.setTimeout(() => { d.remove(); drops.delete(d); }, 750);
     };
     const onPointer = (e: PointerEvent) => { if (e.button === 0 && target(e.target)) drop(e.clientX, e.clientY); };
     // keyboard activation (Enter / Space) arrives as a click with detail 0: ripple from the element's centre
