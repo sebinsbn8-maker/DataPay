@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { Plus } from "lucide-react";
+import { useSession } from "next-auth/react";
 import { Badge, Button, DataTable, Field, Input, Modal, PageHeader, Select, api } from "@/components/ui";
 import { useApi } from "@/components/hooks";
 
@@ -12,6 +13,8 @@ export default function UsersPage() {
   const { data, reload } = useApi<U[]>("/api/users");
   const cons = useApi<C[]>("/api/contributors");
   const [form, setForm] = useState<typeof blank | null>(null);
+  const me = useSession().data?.user?.id;
+  const [edit, setEdit] = useState<{ id: string; name: string; email: string; role: string; isActive: boolean; contributorId: string; password: string } | null>(null);
   const [link, setLink] = useState("");
   const [err, setErr] = useState("");
   const act = async (fn: () => Promise<unknown>, done?: () => void) => { setErr(""); try { await fn(); done?.(); reload(); } catch (e) { setErr((e as Error).message); } };
@@ -28,8 +31,10 @@ export default function UsersPage() {
         { key: "status", header: "Status", render: (u) => <Badge tone={u.isActive ? "green" : "gray"}>{u.isActive ? "active" : "disabled"}</Badge> },
         { key: "actions", header: "", render: (u) => (
           <span className="flex flex-wrap justify-end gap-1">
+            <Button variant="ghost" onClick={() => { setErr(""); setEdit({ id: u.id, name: u.name, email: u.email, role: u.role, isActive: u.isActive, contributorId: u.contributorId ?? "", password: "" }); }}>Edit</Button>
             <Button variant="ghost" onClick={() => act(() => api(`/api/users/${u.id}`, { method: "PATCH", json: { isActive: !u.isActive } }))}>{u.isActive ? "Disable" : "Enable"}</Button>
             <Button variant="ghost" onClick={() => act(async () => { const r = await api<{ link: string }>(`/api/users/${u.id}/reset-link`, { method: "POST" }); setLink(r.link); })}>Reset link</Button>
+            {u.id !== me && <Button variant="ghost" className="text-red-600" onClick={() => { if (confirm(`Delete the login for ${u.name} (${u.email})? This cannot be undone.`)) act(() => api(`/api/users/${u.id}`, { method: "DELETE" })); }}>Delete</Button>}
           </span>) },
       ]} />
       <Modal open={!!form} onClose={() => setForm(null)} title="New user">
@@ -42,6 +47,19 @@ export default function UsersPage() {
             <Field label="Initial password" hint="Min 10 characters. Leave empty for Google-only sign-in or to send a reset link."><Input type="password" minLength={10} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
             {err && <p className="text-sm text-red-700">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setForm(null)}>Cancel</Button><Button>Create user</Button></div>
+          </form>)}
+      </Modal>
+      <Modal open={!!edit} onClose={() => setEdit(null)} title="Edit user">
+        {edit && (
+          <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); act(() => api(`/api/users/${edit.id}`, { method: "PATCH", json: { name: edit.name, email: edit.email, role: edit.role, isActive: edit.isActive, contributorId: edit.role === "CONTRIBUTOR" ? edit.contributorId || null : null, password: edit.password || undefined } }), () => setEdit(null)); }}>
+            <Field label="Full name"><Input required value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></Field>
+            <Field label="Email"><Input required type="email" value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} /></Field>
+            <Field label="Role" hint={edit.id === me ? "You cannot change your own role." : undefined}><Select disabled={edit.id === me} value={edit.role} onChange={(e) => setEdit({ ...edit, role: e.target.value })}><option value="ADMIN">Admin</option><option value="MANAGER">Manager</option><option value="CONTRIBUTOR">Contributor</option></Select></Field>
+            {edit.role === "CONTRIBUTOR" && <Field label="Linked contributor"><Select required value={edit.contributorId} onChange={(e) => setEdit({ ...edit, contributorId: e.target.value })}><option value="">Select…</option>{(cons.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.fullName} ({c.code})</option>)}</Select></Field>}
+            <Field label="Status"><Select disabled={edit.id === me} value={edit.isActive ? "1" : "0"} onChange={(e) => setEdit({ ...edit, isActive: e.target.value === "1" })}><option value="1">Active</option><option value="0">Disabled</option></Select></Field>
+            <Field label="New password" hint="Optional. Min 10 characters. Leave empty to keep the current password."><Input type="password" minLength={10} autoComplete="new-password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} /></Field>
+            {err && <p className="text-sm text-red-700">{err}</p>}
+            <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save changes</Button></div>
           </form>)}
       </Modal>
       <Modal open={!!link} onClose={() => setLink("")} title="Password reset link">
