@@ -39,8 +39,8 @@ export default function PaymentsPage() {
         actions={<Button onClick={() => { setErr(""); setPreview(null); setCreate({ industryId: f.industryId || industries[0]?.id || "", from: monthStart(), to: today(), remarks: "" }); }}>New payment statement</Button>} />
       <FilterBar value={f} onChange={setF} projects={projects} industries={industries} />
       <div className="mb-5 grid grid-cols-2 gap-3 md:grid-cols-5">
-        <Stat label="Accepted hours" value={hrs(sum("accepted"))} /><Stat label="TDS deducted" value={inr(sum("tds"))} tone="text-red-600" /><Stat label="Net payable (after TDS)" value={inr(sum("payable"))} />
-        <Stat label="Paid" value={inr(sum("paid"))} tone="text-violet" /><Stat label="Remaining" value={inr(sum("remaining"))} tone="text-amber-600" />
+        <Stat label="Accepted hours" value={hrs(sum("accepted"))} /><Stat label="TDS deducted" value={inr(sum("tds"))} tone="text-bad" /><Stat label="Net payable (after TDS)" value={inr(sum("payable"))} />
+        <Stat label="Paid" value={inr(sum("paid"))} tone="text-violet" /><Stat label="Remaining" value={inr(sum("remaining"))} tone="text-warn" />
       </div>
 
       <h2 className="mb-2 font-semibold">Industry payment status</h2>
@@ -84,7 +84,7 @@ export default function PaymentsPage() {
             <Button variant="outline" onClick={doPreview}>Preview</Button>
             {preview && (
               <div className="space-y-3 rounded-xl border border-line p-3">
-                {preview.contributorsWithoutRate.length > 0 && <p className="rounded-lg bg-red-50 p-2 text-sm text-red-700">No hourly rate for: {preview.contributorsWithoutRate.join(", ")}. Set a rate first (Industries → Set hourly rate).</p>}
+                {preview.contributorsWithoutRate.length > 0 && <p className="rounded-lg bg-bad/10 p-2 text-sm text-bad">No hourly rate for: {preview.contributorsWithoutRate.join(", ")}. Set a rate first (Industries → Set hourly rate).</p>}
                 <DataTable rows={preview.lines.map((l) => ({ ...l, id: l.contributorId + l.rate }))} empty="No reviewed hours in this period" pageSize={8} cols={[
                   { key: "contributorName", header: "Contributor" }, { key: "accepted", header: "Accepted h", align: "right", render: (l) => hrs(l.accepted) },
                   { key: "rate", header: "Rate", align: "right", render: (l) => inr(l.rate) }, { key: "amount", header: "Gross", align: "right", render: (l) => inr(l.amount) },
@@ -93,7 +93,7 @@ export default function PaymentsPage() {
                   <span className="text-right">Gross {inr(preview.totalAmount)} − TDS {inr(preview.totalTds)}<br /><span className="text-lg font-semibold">Net {inr(preview.totalNet)}</span></span></div>
               </div>)}
             <Field label="Remarks"><Textarea rows={2} value={create.remarks} onChange={(e) => setCreate({ ...create, remarks: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setCreate(null)}>Cancel</Button>
               <Button disabled={!preview || !preview.lines.length || preview.contributorsWithoutRate.length > 0} onClick={() => act(() => api("/api/payments", { method: "POST", json: create }), () => setCreate(null))}>Create statement</Button></div>
           </div>)}
@@ -105,8 +105,8 @@ export default function PaymentsPage() {
           <div className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-2"><div className="text-sm text-muted">{d.projectName} · {d.periodStart} → {d.periodEnd}</div><Badge tone={TONE[d.status]}>{LABEL[d.status]}</Badge></div>
             <div className="grid grid-cols-2 gap-3 md:grid-cols-6">
-              <Stat label="Accepted h" value={hrs(d.totalAcceptedHours)} /><Stat label="Gross" value={inr(d.calculatedAmount)} /><Stat label={`TDS ${Number(d.tdsPercent)}%`} value={inr(d.tdsAmount)} tone="text-red-600" /><Stat label="Adjustments" value={inr(d.adjustmentsTotal)} />
-              <Stat label="Net approved" value={d.status === "PENDING_APPROVAL" ? "—" : inr(d.approvedAmount)} /><Stat label="Outstanding" value={d.status === "PENDING_APPROVAL" || d.status === "VOID" ? "—" : inr(d.outstanding)} tone="text-amber-600" />
+              <Stat label="Accepted h" value={hrs(d.totalAcceptedHours)} /><Stat label="Gross" value={inr(d.calculatedAmount)} /><Stat label={`TDS ${Number(d.tdsPercent)}%`} value={inr(d.tdsAmount)} tone="text-bad" /><Stat label="Adjustments" value={inr(d.adjustmentsTotal)} />
+              <Stat label="Net approved" value={d.status === "PENDING_APPROVAL" ? "—" : inr(d.approvedAmount)} /><Stat label="Outstanding" value={d.status === "PENDING_APPROVAL" || d.status === "VOID" ? "—" : inr(d.outstanding)} tone="text-warn" />
             </div>
             <section><h3 className="mb-2 text-sm font-semibold">Contributor breakdown</h3>
               <DataTable rows={(d.lines ?? []).map((l) => ({ ...l, id: l.contributorId + l.rate }))} pageSize={8} cols={[
@@ -116,7 +116,7 @@ export default function PaymentsPage() {
             {d.adjustments.length > 0 && <section><h3 className="mb-1 text-sm font-semibold">Adjustments</h3>{d.adjustments.map((a) => <p key={a.id} className="text-sm">{inr(a.amount)} — {a.reason}</p>)}</section>}
             {d.transactions.length > 0 && <section><h3 className="mb-1 text-sm font-semibold">Payments made</h3>{d.transactions.map((t) => <p key={t.id} className="text-sm">{t.paymentDate} · {inr(t.amount)} · {t.method.replace("_", " ")} · ref {t.referenceNumber}</p>)}</section>}
             {d.status === "PAID" ? <Slips id={d.id} /> : d.status !== "VOID" && <p className="text-xs text-muted">Payment acknowledgement slips become available once this statement is fully paid.</p>}
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             {isAdmin && d.status !== "VOID" && (
               <div className="flex flex-wrap gap-2 border-t border-line pt-3">
                 {d.status === "PENDING_APPROVAL" && <Button onClick={() => act(() => api(`/api/payments/${d.id}/approve`, { method: "POST" }))}>Approve statement</Button>}
@@ -162,10 +162,10 @@ function Slips({ id }: { id: string }) {
       <div className="divide-y divide-line rounded-xl border border-line">
         {rows.map((r) => (
           <div key={r.contributorId} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
-            <span><b>{r.name}</b> <span className="text-muted">{r.code} · Net {inr(r.net)}</span> {r.hasSignature ? <span className="text-emerald-700">✓ signed</span> : <span className="text-amber-700">no signature on file</span>}</span>
+            <span><b>{r.name}</b> <span className="text-muted">{r.code} · Net {inr(r.net)}</span> {r.hasSignature ? <span className="text-good">✓ signed</span> : <span className="text-warn">no signature on file</span>}</span>
             <Button variant="outline" onClick={() => downloadFile(`/api/payments/${id}/slip?contributorId=${r.contributorId}`)}>Download slip</Button>
           </div>))}
-        {rows.length === 0 && <p className="px-3 py-2 text-sm text-muted">{s.data ? "No recipients." : "Loading…"}</p>}
+        {rows.length === 0 && <p className="px-3 py-2 text-sm text-muted">{s.data ? "No recipients." : <span className="skeleton block h-5 w-40" />}</p>}
       </div>
     </section>
   );

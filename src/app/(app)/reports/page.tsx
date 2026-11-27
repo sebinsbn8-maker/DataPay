@@ -25,12 +25,12 @@ export default function ReportsPage() {
   return (
     <div>
       <PageHeader title="Reports" subtitle="Generate contributor, industry and project reports for any period, then export."
-        actions={(["xlsx", "csv", "pdf"] as const).map((fmt) => <a key={fmt} href={`/api/reports/export?${q}&format=${fmt}`} className="inline-flex h-11 items-center gap-2 rounded-lg border border-line bg-white px-4 text-sm font-medium hover:bg-slate-50 sm:h-10"><Download size={15} />{fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}</a>)} />
-      <div className="mb-4 inline-flex rounded-lg border border-line bg-white p-1" role="tablist">
-        {(["contributor", "industry", "project"] as Kind[]).map((k) => <button key={k} role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={cx("h-9 rounded-md px-4 text-sm font-medium capitalize", kind === k ? "bg-violet text-white" : "text-muted hover:bg-slate-50")}>{k}</button>)}
+        actions={(["xlsx", "csv", "pdf"] as const).map((fmt) => <a key={fmt} href={`/api/reports/export?${q}&format=${fmt}`} className="inline-flex h-11 items-center gap-2 rounded-lg border border-line bg-card-2 px-4 text-sm font-medium hover:bg-white/[0.04] sm:h-10"><Download size={15} />{fmt === "xlsx" ? "Excel" : fmt.toUpperCase()}</a>)} />
+      <div className="mb-4 inline-flex rounded-lg border border-line bg-card-2 p-1" role="tablist">
+        {(["contributor", "industry", "project"] as Kind[]).map((k) => <button key={k} role="tab" aria-selected={kind === k} onClick={() => setKind(k)} className={cx("h-9 rounded-md px-4 text-sm font-medium transition capitalize", kind === k ? "tab-active" : "tab-idle text-muted")}>{k}</button>)}
       </div>
       <FilterBar value={f} onChange={setF} projects={projects} industries={industries} />
-      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 text-sm text-bad">{error}</p>}
       <div className={cx(loading && "opacity-60")}><DataTable rows={rows} cols={COLS[kind]} searchText={(r) => Object.values(r).join(" ")} pageSize={15} empty="No data for the selected filters" /></div>
       <Card className="mt-4 text-sm text-muted">Acceptance % = accepted ÷ client-reviewed submitted hours. Productivity % = submitted ÷ target hours. Gross uses the rate in force on each work date; TDS is withheld per contributor; Net payable = gross − TDS. Billed hours keep their approved amount.</Card>
     </div>

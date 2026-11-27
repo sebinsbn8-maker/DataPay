@@ -39,7 +39,7 @@ export default function ContributorsPage() {
     <div>
       <PageHeader title="Contributors" subtitle="Add contributors, assign them to industries, and manage targets."
         actions={isAdmin && <Button onClick={() => { setErr(""); setEdit({ ...blank }); }}><Plus size={16} />New contributor</Button>} />
-      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 text-sm text-bad">{error}</p>}
       <DataTable rows={data ?? []} searchText={(c) => `${c.fullName} ${c.code} ${c.email} ${c.assignments.map((a) => a.industryName).join(" ")}`}
         onRowClick={(c) => { setErr(""); setSel(c); }}
         cols={[
@@ -48,7 +48,7 @@ export default function ContributorsPage() {
           { key: "assign", header: "Industries", render: (c) => c.assignments.filter((a) => a.status === "ACTIVE").map((a) => a.industryName).join(", ") || "—" },
           { key: "email", header: "Email", hideOnMobile: true },
           { key: "status", header: "Status", render: (c) => <Badge tone={c.status === "ACTIVE" ? "green" : "gray"}>{c.status.toLowerCase()}</Badge> },
-          ...(isAdmin ? [{ key: "del", header: "", render: (c: Con) => <button type="button" aria-label={`Delete ${c.fullName}`} title="Delete" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); removeContributor(c); }}><Trash2 size={16} /></button> }] : []),
+          ...(isAdmin ? [{ key: "del", header: "", render: (c: Con) => <button type="button" aria-label={`Delete ${c.fullName}`} title="Delete" className="rounded-lg p-2 text-bad hover:bg-bad/10" onClick={(e) => { e.stopPropagation(); removeContributor(c); }}><Trash2 size={16} /></button> }] : []),
         ]} />
 
       {/* detail */}
@@ -98,7 +98,7 @@ export default function ContributorsPage() {
                 { key: "accepted", header: "Accepted h", align: "right", render: (r) => (r.accepted ? hrs(r.accepted) : "—") },
               ]} />
             </section>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
           </div>
         )}
       </Modal>
@@ -114,7 +114,7 @@ export default function ContributorsPage() {
             </div>
             <Field label="Joining date"><Input type="date" value={edit.joiningDate} onChange={(e) => setEdit({ ...edit, joiningDate: e.target.value })} /></Field>
             <Field label="Notes"><Textarea rows={2} value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save</Button></div>
           </form>
         )}
@@ -132,7 +132,7 @@ export default function ContributorsPage() {
               <Field label="Monthly h"><Input type="number" min="0" step="0.5" value={asg.monthlyTargetHours} onChange={(e) => setAsg({ ...asg, monthlyTargetHours: e.target.value })} /></Field>
             </div>
             <Field label="Contributor-specific hourly rate (₹, optional)" hint="Leave empty to use the industry or project rate."><Input type="number" min="0" step="0.01" value={asg.hourlyRate} onChange={(e) => setAsg({ ...asg, hourlyRate: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setAsg(null)}>Cancel</Button><Button>Assign</Button></div>
           </form>
         )}
@@ -144,7 +144,7 @@ export default function ContributorsPage() {
           <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); run(() => api(`/api/assignments/${transfer.id}/transfer`, { method: "POST", json: { industryId: transfer.industryId } }), () => setTransfer(null)); }}>
             <p className="text-sm text-muted">Past hours, QC and payments stay with the old industry. Future entries go to the new one.</p>
             <Field label="New industry"><Select required value={transfer.industryId} onChange={(e) => setTransfer({ ...transfer, industryId: e.target.value })}><option value="">Select…</option>{industries.filter((i) => i.status === "ACTIVE").map((i) => <option key={i.id} value={i.id}>{projects.find((p) => p.id === i.projectId)?.name} · {i.name}</option>)}</Select></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setTransfer(null)}>Cancel</Button><Button>Transfer</Button></div>
           </form>
         )}

@@ -19,11 +19,11 @@ export default function MyWorkPage() {
   return (
     <div>
       <PageHeader title="My work" subtitle="This month · only your own records are shown." />
-      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 text-sm text-bad">{error}</p>}
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <Stat label="Submitted h" value={hrs(sum("submitted"))} /><Stat label="Accepted h" value={hrs(sum("accepted"))} tone="text-emerald-600" />
-        <Stat label="Pending review h" value={hrs(pending)} tone="text-amber-600" /><Stat label="Earned (gross)" value={inr(data?.money.gross ?? 0)} />
-        <Stat label={`TDS ${Number(data?.money.tdsPercent ?? 0)}%`} value={inr(data?.money.tds ?? 0)} tone="text-red-600" /><Stat label="Net payable" value={inr(data?.money.net ?? 0)} tone="text-violet" />
+        <Stat label="Submitted h" value={hrs(sum("submitted"))} /><Stat label="Accepted h" value={hrs(sum("accepted"))} tone="text-good" />
+        <Stat label="Pending review h" value={hrs(pending)} tone="text-warn" /><Stat label="Earned (gross)" value={inr(data?.money.gross ?? 0)} />
+        <Stat label={`TDS ${Number(data?.money.tdsPercent ?? 0)}%`} value={inr(data?.money.tds ?? 0)} tone="text-bad" /><Stat label="Net payable" value={inr(data?.money.net ?? 0)} tone="text-violet" />
       </div>
       <Card className="mt-4"><p className="mb-2 text-sm font-medium">Target vs actual (month to date)</p>
         <div className="space-y-2"><div><p className="text-xs text-muted">Submitted ÷ target ({hrs(sum("submitted"))} / {hrs(tgt)} h)</p><Progress value={tgt ? (sum("submitted") / tgt) * 100 : 0} /></div>

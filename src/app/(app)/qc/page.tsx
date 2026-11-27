@@ -62,9 +62,9 @@ export default function QcPage() {
       </div>
 
       {/* desktop table */}
-      <div className="hidden overflow-x-auto rounded-xl border border-line bg-white md:block">
+      <div className="hidden overflow-x-auto rounded-xl border border-line bg-card-2 md:block">
         <table className="w-full text-sm">
-          <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-muted"><tr>
+          <thead className="bg-white/[0.04] text-left text-xs uppercase tracking-wide text-muted"><tr>
             <th className="px-3 py-3"><input type="checkbox" aria-label="Select all" onChange={(e) => setSel(e.target.checked ? new Set((data ?? []).filter((r) => !r.locked).map((r) => r.id)) : new Set())} /></th>
             {["Date", "Industry", "Contributor", "Submitted h", "Client %", "Accepted h", "Rejected h", "QC status"].map((h) => <th key={h} className="whitespace-nowrap px-3 py-3">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-line">
@@ -101,9 +101,9 @@ export default function QcPage() {
           </Card>); })}
       </div>
 
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 p-3 backdrop-blur lg:left-64">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/90 p-3 backdrop-blur lg:left-64">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3">
-          <p className={cx("text-sm", msg?.ok === false ? "text-red-700" : "text-muted")} role="status">{msg?.text ?? (anyBad ? "Some values are out of range (accepted + rejected must equal submitted hours)." : changed.length ? `${changed.length} unsaved change${changed.length === 1 ? "" : "s"}` : "Edit the client %, accepted h or rejected h. Locked rows belong to a payment statement.")}</p>
+          <p className={cx("text-sm", msg?.ok === false ? "text-bad" : "text-muted")} role="status">{msg?.text ?? (anyBad ? "Some values are out of range (accepted + rejected must equal submitted hours)." : changed.length ? `${changed.length} unsaved change${changed.length === 1 ? "" : "s"}` : "Edit the client %, accepted h or rejected h. Locked rows belong to a payment statement.")}</p>
           <Button disabled={!changed.length || anyBad} onClick={() => save(changed.map((r) => {
             const e = edits[r.id], q = ref || undefined;
             if (e.text.trim() === "") return { id: r.id, acceptancePct: null, qcReference: q };

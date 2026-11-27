@@ -25,7 +25,7 @@ export default function SettingsPage() {
           <form className="space-y-3" onSubmit={async (e) => { e.preventDefault(); setMsg(null); try { await api("/api/me/password", { method: "POST", json: pw }); setMsg({ ok: true, text: "Password updated." }); setPw({ current: "", next: "" }); } catch (err) { setMsg({ ok: false, text: (err as Error).message }); } }}>
             <Field label="Current password"><Input type="password" required value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></Field>
             <Field label="New password" hint="At least 10 characters"><Input type="password" required minLength={10} value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></Field>
-            {msg && <p className={msg.ok ? "text-sm text-emerald-700" : "text-sm text-red-700"}>{msg.text}</p>}
+            {msg && <p className={msg.ok ? "text-sm text-good" : "text-sm text-bad"}>{msg.text}</p>}
             <Button>Update password</Button>
           </form>
         </Card>

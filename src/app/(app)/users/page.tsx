@@ -23,7 +23,7 @@ export default function UsersPage() {
     <div>
       <PageHeader title="User Management" subtitle="Admins have full access. Managers see only the projects/industries assigned to them. Contributors see only their own data."
         actions={<Button onClick={() => { setErr(""); setForm({ ...blank }); }}><Plus size={16} />New user</Button>} />
-      {err && !form && <p className="mb-3 rounded-lg bg-red-50 p-2 text-sm text-red-700">{err}</p>}
+      {err && !form && <p className="mb-3 rounded-lg bg-bad/10 p-2 text-sm text-bad">{err}</p>}
       <DataTable rows={data ?? []} searchText={(u) => `${u.name} ${u.email} ${u.role}`} cols={[
         { key: "name", header: "Name", sortValue: (u) => u.name, render: (u) => <div><p className="font-medium">{u.name}</p><p className="text-xs text-muted">{u.email}</p></div> },
         { key: "role", header: "Role", render: (u) => <Badge tone={u.role === "ADMIN" ? "violet" : u.role === "MANAGER" ? "blue" : "gray"}>{u.role.toLowerCase()}</Badge> },
@@ -34,7 +34,7 @@ export default function UsersPage() {
             <Button variant="ghost" onClick={() => { setErr(""); setEdit({ id: u.id, name: u.name, email: u.email, role: u.role, isActive: u.isActive, contributorId: u.contributorId ?? "", password: "" }); }}>Edit</Button>
             <Button variant="ghost" onClick={() => act(() => api(`/api/users/${u.id}`, { method: "PATCH", json: { isActive: !u.isActive } }))}>{u.isActive ? "Disable" : "Enable"}</Button>
             <Button variant="ghost" onClick={() => act(async () => { const r = await api<{ link: string }>(`/api/users/${u.id}/reset-link`, { method: "POST" }); setLink(r.link); })}>Reset link</Button>
-            {u.id !== me && <Button variant="ghost" className="text-red-600" onClick={() => { if (confirm(`Delete the login for ${u.name} (${u.email})? This cannot be undone.`)) act(() => api(`/api/users/${u.id}`, { method: "DELETE" })); }}>Delete</Button>}
+            {u.id !== me && <Button variant="ghost" className="text-bad" onClick={() => { if (confirm(`Delete the login for ${u.name} (${u.email})? This cannot be undone.`)) act(() => api(`/api/users/${u.id}`, { method: "DELETE" })); }}>Delete</Button>}
           </span>) },
       ]} />
       <Modal open={!!form} onClose={() => setForm(null)} title="New user">
@@ -45,7 +45,7 @@ export default function UsersPage() {
             <Field label="Role"><Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}><option value="ADMIN">Admin</option><option value="MANAGER">Manager</option><option value="CONTRIBUTOR">Contributor</option></Select></Field>
             {form.role === "CONTRIBUTOR" && <Field label="Linked contributor"><Select required value={form.contributorId} onChange={(e) => setForm({ ...form, contributorId: e.target.value })}><option value="">Select…</option>{(cons.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.fullName} ({c.code})</option>)}</Select></Field>}
             <Field label="Initial password" hint="Min 10 characters. Leave empty for Google-only sign-in or to send a reset link."><Input type="password" minLength={10} value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setForm(null)}>Cancel</Button><Button>Create user</Button></div>
           </form>)}
       </Modal>
@@ -58,7 +58,7 @@ export default function UsersPage() {
             {edit.role === "CONTRIBUTOR" && <Field label="Linked contributor"><Select required value={edit.contributorId} onChange={(e) => setEdit({ ...edit, contributorId: e.target.value })}><option value="">Select…</option>{(cons.data ?? []).map((c) => <option key={c.id} value={c.id}>{c.fullName} ({c.code})</option>)}</Select></Field>}
             <Field label="Status"><Select disabled={edit.id === me} value={edit.isActive ? "1" : "0"} onChange={(e) => setEdit({ ...edit, isActive: e.target.value === "1" })}><option value="1">Active</option><option value="0">Disabled</option></Select></Field>
             <Field label="New password" hint="Optional. Min 10 characters. Leave empty to keep the current password."><Input type="password" minLength={10} autoComplete="new-password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save changes</Button></div>
           </form>)}
       </Modal>

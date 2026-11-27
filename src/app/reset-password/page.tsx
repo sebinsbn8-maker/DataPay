@@ -19,7 +19,7 @@ function Form() {
         catch (err) { setMsg({ ok: false, text: (err as Error).message }); }
       }}>
         <Field label="New password" hint="At least 10 characters"><Input type="password" required minLength={10} value={password} onChange={(e) => setPassword(e.target.value)} /></Field>
-        {msg && <p className={msg.ok ? "text-sm text-emerald-700" : "text-sm text-red-700"}>{msg.text}</p>}
+        {msg && <p className={msg.ok ? "text-sm text-good" : "text-sm text-bad"}>{msg.text}</p>}
         <Button className="w-full">Update password</Button>
       </form>
       <Link href="/login" className="block text-sm text-violet">Back to sign in</Link>

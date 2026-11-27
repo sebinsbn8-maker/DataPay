@@ -1,4 +1,5 @@
 "use client";
+import { Loader } from "@/components/Fx";
 import { useMemo, useState } from "react";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import { Badge, Button, Card, Field, Input, PageHeader, Stat, api, cx } from "@/components/ui";
@@ -65,7 +66,7 @@ export default function DailyHoursPage() {
         <Stat label="Submitted h" value={hrs(data?.totals.submitted ?? 0)} />
       </div>
 
-      {loading && !data && <p className="text-muted">Loading…</p>}
+      {loading && !data && <Loader label="Loading sheet" />}
       {!loading && !groups.length && <Card className="text-center text-muted">No active contributors match these filters. Assign contributors to industries first.</Card>}
 
       <div className="space-y-6">
@@ -94,7 +95,7 @@ export default function DailyHoursPage() {
                           {d.sessions.map((s, i) => (
                             <span key={i} className="flex items-center gap-1">
                               <Input disabled={r.locked} className="w-24" type="number" inputMode="decimal" min="0" max="1000" step="0.25" placeholder="0" value={s} onChange={(e) => set(r.assignmentId, { sessions: d.sessions.map((x, j) => (j === i ? e.target.value : x)) })} />
-                              {d.sessions.length > 1 && !r.locked && <button aria-label="Remove session" className="rounded p-2 text-muted hover:bg-slate-100" onClick={() => set(r.assignmentId, { sessions: d.sessions.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>}
+                              {d.sessions.length > 1 && !r.locked && <button aria-label="Remove session" className="rounded p-2 text-muted hover:bg-white/10" onClick={() => set(r.assignmentId, { sessions: d.sessions.filter((_, j) => j !== i) })}><Trash2 size={14} /></button>}
                             </span>
                           ))}
                           {!r.locked && <button className="inline-flex h-11 items-center gap-1 rounded-lg px-2 text-sm text-violet hover:bg-violet/10 sm:h-10" onClick={() => set(r.assignmentId, { sessions: [...d.sessions, ""] })}><Plus size={14} />session</button>}
@@ -105,7 +106,7 @@ export default function DailyHoursPage() {
                         <Field label="Submitted hours" hint={over ? undefined : "Defaults to actual hours"}>
                           <Input disabled={r.locked} type="number" inputMode="decimal" min="0" step="0.25" className={over ? "!border-red-500" : ""} placeholder={String(actual || 0)} value={d.submitted} onChange={(e) => set(r.assignmentId, { submitted: e.target.value, submittedTouched: true })} />
                         </Field>
-                        {over && <p className="mt-1 text-xs text-red-600">Submitted exceeds actual hours</p>}
+                        {over && <p className="mt-1 text-xs text-bad">Submitted exceeds actual hours</p>}
                       </div>
                     </div>
                     <div className="mt-3"><Input disabled={r.locked} placeholder="Remarks (optional)" value={d.remarks} onChange={(e) => set(r.assignmentId, { remarks: e.target.value })} /></div>
@@ -118,9 +119,9 @@ export default function DailyHoursPage() {
       </div>
 
       {/* sticky save bar: thumb-friendly on phones */}
-      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white/95 p-3 backdrop-blur lg:left-64">
+      <div className="fixed inset-x-0 bottom-0 z-20 border-t border-line bg-card/90 p-3 backdrop-blur lg:left-64">
         <div className="mx-auto flex max-w-[1400px] items-center justify-between gap-3">
-          <p className={cx("text-sm", msg?.ok === false ? "text-red-700" : "text-muted")} role="status">{msg?.text ?? (dirty.length ? `${dirty.length} unsaved change${dirty.length === 1 ? "" : "s"}` : "No changes")}</p>
+          <p className={cx("text-sm", msg?.ok === false ? "text-bad" : "text-muted")} role="status">{msg?.text ?? (dirty.length ? `${dirty.length} unsaved change${dirty.length === 1 ? "" : "s"}` : "No changes")}</p>
           <Button disabled={!dirty.length || saving} onClick={save}>{saving ? "Saving…" : "Save hours"}</Button>
         </div>
       </div>

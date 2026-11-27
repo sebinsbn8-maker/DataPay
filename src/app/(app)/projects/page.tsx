@@ -34,7 +34,7 @@ export default function ProjectsPage() {
     <div>
       <PageHeader title="Projects" subtitle="Each project can contain multiple industries."
         actions={isAdmin && <Button onClick={() => { setErr(""); setEdit({ ...empty }); }}><Plus size={16} />New project</Button>} />
-      {error && <p className="mb-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="mb-3 text-sm text-bad">{error}</p>}
       <DataTable rows={data ?? []} searchText={(p) => `${p.name} ${p.code} ${p.clientName}`}
         onRowClick={isAdmin ? (p) => { setErr(""); setEdit({ ...empty, ...p, description: p.description ?? "", startDate: p.startDate ?? "", endDate: p.endDate ?? "", managerId: p.managerId ?? "", notes: p.notes ?? "" }); } : undefined}
         cols={[
@@ -43,7 +43,7 @@ export default function ProjectsPage() {
           { key: "clientName", header: "Client", sortValue: (p) => p.clientName },
           { key: "dates", header: "Dates", render: (p) => `${p.startDate ?? "—"} → ${p.endDate ?? "—"}` },
           { key: "status", header: "Status", render: (p) => <Badge tone={tone(p.status)}>{p.status.toLowerCase()}</Badge> },
-          ...(isAdmin ? [{ key: "del", header: "", render: (p: Project) => <button type="button" aria-label={`Delete ${p.name}`} title="Delete" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); removeProject(p); }}><Trash2 size={16} /></button> }] : []),
+          ...(isAdmin ? [{ key: "del", header: "", render: (p: Project) => <button type="button" aria-label={`Delete ${p.name}`} title="Delete" className="rounded-lg p-2 text-bad hover:bg-bad/10" onClick={(e) => { e.stopPropagation(); removeProject(p); }}><Trash2 size={16} /></button> }] : []),
         ]} />
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Edit project" : "New project"}>
         {edit && (
@@ -60,7 +60,7 @@ export default function ProjectsPage() {
             </div>
             <Field label="Description"><Textarea rows={2} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
             <Field label="Notes"><Textarea rows={2} value={edit.notes} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex items-center justify-between gap-2">
               {edit.id ? <Button type="button" variant="danger" onClick={remove}>Delete</Button> : <span />}
               <div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save project</Button></div>

@@ -28,8 +28,8 @@ export default function ProductivityPage() {
     <div>
       <PageHeader title="Productivity" subtitle="Submitted productivity = Submitted ÷ Target. Accepted productivity = Accepted ÷ Target. Hours pending client review never count as accepted." />
       <div className="mb-4 flex flex-wrap items-end gap-3">
-        <div className="inline-flex rounded-lg border border-line bg-white p-1" role="tablist">
-          {PERIODS.map(([k, l]) => <button key={k} role="tab" aria-selected={period === k} onClick={() => setPeriod(k)} className={cx("h-9 rounded-md px-4 text-sm font-medium", period === k ? "bg-violet text-white" : "text-muted hover:bg-slate-50")}>{l}</button>)}
+        <div className="inline-flex rounded-lg border border-line bg-card-2 p-1" role="tablist">
+          {PERIODS.map(([k, l]) => <button key={k} role="tab" aria-selected={period === k} onClick={() => setPeriod(k)} className={cx("h-9 rounded-md px-4 text-sm font-medium transition", period === k ? "tab-active" : "tab-idle text-muted")}>{l}</button>)}
         </div>
         {period !== "custom" && <div className="w-44"><Field label="Reference date"><Input type="date" value={date} onChange={(e) => setDate(e.target.value)} /></Field></div>}
         {data && <p className="pb-2 text-sm text-muted">{data.range.from} → {data.range.to}</p>}

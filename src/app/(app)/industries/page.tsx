@@ -53,7 +53,7 @@ export default function IndustriesPage() {
           { key: "project", header: "Project", sortValue: (i) => pname(i.projectId), render: (i) => pname(i.projectId) },
           ...(isAdmin ? [{ key: "rate", header: "Current rate", render: (i: Industry) => currentRate(i) }] : []),
           { key: "status", header: "Status", render: (i) => <Badge tone={i.status === "ACTIVE" ? "green" : "gray"}>{i.status.toLowerCase()}</Badge> },
-          ...(isAdmin ? [{ key: "del", header: "", render: (i: Industry) => <button type="button" aria-label={`Delete ${i.name}`} title="Delete" className="rounded-lg p-2 text-red-600 hover:bg-red-50" onClick={(e) => { e.stopPropagation(); removeIndustry(i); }}><Trash2 size={16} /></button> }] : []),
+          ...(isAdmin ? [{ key: "del", header: "", render: (i: Industry) => <button type="button" aria-label={`Delete ${i.name}`} title="Delete" className="rounded-lg p-2 text-bad hover:bg-bad/10" onClick={(e) => { e.stopPropagation(); removeIndustry(i); }}><Trash2 size={16} /></button> }] : []),
         ]} />
 
       <Modal open={!!edit} onClose={() => setEdit(null)} title={edit?.id ? "Edit industry" : "New industry"}>
@@ -64,7 +64,7 @@ export default function IndustriesPage() {
             <Field label="Manager"><Select value={edit.managerId} onChange={(e) => setEdit({ ...edit, managerId: e.target.value })}><option value="">— none —</option>{(users.data ?? []).filter((u) => u.role === "MANAGER").map((u) => <option key={u.id} value={u.id}>{u.name}</option>)}</Select></Field>
             <Field label="Status"><Select value={edit.status} onChange={(e) => setEdit({ ...edit, status: e.target.value })}><option value="ACTIVE">Active</option><option value="INACTIVE">Inactive</option><option value="ARCHIVED">Archived</option></Select></Field>
             <Field label="Description"><Textarea rows={2} value={edit.description} onChange={(e) => setEdit({ ...edit, description: e.target.value })} /></Field>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex items-center justify-between gap-2">
               {edit.id ? <Button type="button" variant="danger" onClick={remove}>Delete</Button> : <span />}
               <div className="flex gap-2"><Button type="button" variant="outline" onClick={() => setEdit(null)}>Cancel</Button><Button>Save</Button></div>
@@ -85,7 +85,7 @@ export default function IndustriesPage() {
               <Field label="Hourly rate (₹)"><Input required type="number" min="0.01" step="0.01" value={rate.hourlyRate} onChange={(e) => setRate({ ...rate, hourlyRate: e.target.value })} /></Field>
               <Field label="Effective from"><Input required type="date" value={rate.effectiveFrom} onChange={(e) => setRate({ ...rate, effectiveFrom: e.target.value })} /></Field>
             </div>
-            {err && <p className="text-sm text-red-700">{err}</p>}
+            {err && <p className="text-sm text-bad">{err}</p>}
             <div className="flex justify-end gap-2"><Button type="button" variant="outline" onClick={() => setRate(null)}>Cancel</Button><Button>Save rate</Button></div>
           </form>
         )}

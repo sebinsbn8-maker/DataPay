@@ -34,7 +34,7 @@ function DrawPad({ onUse, onCancel }: { onUse: (dataUrl: string) => void; onCanc
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted">Sign inside the box using your mouse, finger or stylus.</p>
-      <canvas ref={ref} width={MAX_W} height={MAX_H} aria-label="Signature pad" className="w-full touch-none rounded-lg border border-dashed border-slate-400 bg-white"
+      <canvas ref={ref} width={MAX_W} height={MAX_H} aria-label="Signature pad" className="w-full touch-none rounded-lg border border-dashed border-muted bg-card-2"
         onPointerDown={start} onPointerMove={move} onPointerUp={stop} onPointerLeave={stop} />
       <div className="flex justify-between gap-2">
         <Button type="button" variant="outline" onClick={clear}>Clear</Button>
@@ -74,7 +74,7 @@ export function SignaturePanel({ contributorId, canEdit }: { contributorId: stri
 
   return (
     <div>
-      <div className="flex min-h-24 items-center justify-center rounded-xl border border-dashed border-line bg-white p-3">
+      <div className="flex min-h-24 items-center justify-center rounded-xl border border-dashed border-line bg-card-2 p-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img key={ver} src={`/api/contributors/${contributorId}/signature?v=${ver}`} alt="Signature" className={has === "yes" ? "max-h-24 max-w-full" : "hidden"}
           onLoad={() => setHas("yes")} onError={() => setHas("no")} />
@@ -87,7 +87,7 @@ export function SignaturePanel({ contributorId, canEdit }: { contributorId: stri
           <Button type="button" variant="outline" disabled={busy} onClick={() => setDraw(true)}>Draw signature</Button>
           {has === "yes" && <Button type="button" variant="danger" disabled={busy} onClick={remove}>Remove</Button>}
         </div>)}
-      {msg && <p className={`mt-2 text-sm ${msg.ok ? "text-emerald-700" : "text-red-700"}`} role="status">{msg.text}</p>}
+      {msg && <p className={`mt-2 text-sm ${msg.ok ? "text-good" : "text-bad"}`} role="status">{msg.text}</p>}
       {canEdit && <p className="mt-2 text-xs text-muted">Use a clear signature on a white or transparent background (PNG or JPG). It is printed on payment acknowledgement slips.</p>}
       <Modal open={draw} onClose={() => setDraw(false)} title="Draw your signature">
         {draw && <DrawPad onCancel={() => setDraw(false)} onUse={(d) => { setDraw(false); save(d); }} />}
