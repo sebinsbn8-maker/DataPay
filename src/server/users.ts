@@ -74,6 +74,7 @@ export async function deleteUser(actorId: string, id: string) {
   try {
     await db.transaction(async (tx) => {
       await tx.delete(s.notifications).where(eq(s.notifications.userId, id));
+      await tx.delete(s.auditLogs).where(and(eq(s.auditLogs.userId, id), eq(s.auditLogs.action, "LOGIN"))); // sign-in records are not business activity
       await tx.delete(s.users).where(eq(s.users.id, id));
     });
   } catch {

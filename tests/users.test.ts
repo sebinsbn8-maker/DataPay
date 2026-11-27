@@ -36,3 +36,14 @@ describe("user management", () => {
     await expect(deleteUser(admin, y.id)).rejects.toThrow(/Disable them instead/);
   });
 });
+
+describe("deleting a user who only signed in", () => {
+  it("is allowed (login records don't count as activity)", async () => {
+    const { audit } = await import("../src/server/audit");
+    const { getDb } = await import("../src/db");
+    const u = await createUser(admin, { name: "Login only", email: "lo@x.io", role: "MANAGER", password: "LongPassword123", isActive: true });
+    await audit(await getDb(), { userId: u.id, action: "LOGIN", entity: "user", entityId: u.id });
+    await deleteUser(admin, u.id);
+    expect((await listUsers()).some((x) => x.email === "lo@x.io")).toBe(false);
+  });
+});
