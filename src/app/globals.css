@@ -112,8 +112,7 @@ input[type="date"]::-webkit-calendar-picker-indicator { filter: invert(.8); curs
 .text-gradient { background: linear-gradient(90deg, #67e8f9, #a5b4fc 50%, #c4b5fd); -webkit-background-clip: text; background-clip: text; color: transparent; }
 .hairline { height: 1px; background: linear-gradient(90deg, transparent, rgb(var(--glow-cyan) / .5), rgb(var(--glow-violet) / .5), transparent); }
 
-/* ============ Buttons: ripple + neon ============ */
-button:not([data-no-ripple]), .ripple { position: relative; overflow: hidden; }
+/* ============ Buttons: neon ============ */
 button { transition: transform .15s ease, box-shadow .25s ease, background-color .2s, border-color .2s, color .2s, opacity .2s; }
 button:not(:disabled):active { transform: scale(.97); }
 .btn-primary { background: linear-gradient(135deg, #06b6d4 0%, #3b82f6 50%, #7c3aed 100%); color: #fff; box-shadow: 0 0 0 1px rgb(255 255 255 / .1) inset; }
@@ -123,8 +122,6 @@ button:not(:disabled):active { transform: scale(.97); }
 .btn-ghost:hover:not(:disabled) { background: rgb(var(--glow-cyan) / .09); color: #fff; }
 .btn-danger { background: linear-gradient(135deg, #e11d48, #be123c); color: #fff; }
 .btn-danger:hover:not(:disabled) { box-shadow: 0 0 20px rgb(244 63 94 / .5); filter: brightness(1.1); }
-.ripple-dot { position: absolute; border-radius: 9999px; pointer-events: none; background: rgb(255 255 255 / .35); transform: scale(0); animation: ripple .6s ease-out forwards; }
-@keyframes ripple { to { transform: scale(1); opacity: 0; } }
 
 /* ============ Inputs ============ */
 .input { background: var(--field); border: 1px solid var(--border); color: var(--ink); transition: border-color .2s, box-shadow .2s, background .2s; }
@@ -192,3 +189,19 @@ button:not(:disabled):active { transform: scale(.97); }
 .tab-idle:hover { background: rgb(var(--glow-cyan) / .09); color: #fff; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--cyan); }
 .recharts-legend-wrapper { font-size: 12px; } .recharts-legend-item-text { font-size: 12px; }
+
+/* ============ Water-drop ripple (global click effect) ============ */
+#wd-layer { position: fixed; inset: 0; z-index: 9999; pointer-events: none; overflow: hidden; contain: layout paint; }
+.wd { position: absolute; width: 190px; height: 190px; margin: -95px 0 0 -95px; pointer-events: none; filter: url(#wd-liquid); }
+.wd i { position: absolute; inset: 0; border-radius: 9999px; opacity: 0; transform: scale(.04); will-change: transform, opacity;
+  border: 1.5px solid rgb(103 232 249 / .8);
+  box-shadow: 0 0 10px rgb(34 211 238 / .5), inset 0 0 14px rgb(34 211 238 / .22);
+  animation: wd-ring .86s cubic-bezier(.12,.72,.24,1) forwards; }
+.wd i:nth-child(2) { animation-delay: .08s; border-width: 1.25px; border-color: rgb(96 165 250 / .7); box-shadow: 0 0 9px rgb(59 130 246 / .45), inset 0 0 12px rgb(59 130 246 / .2); }
+.wd i:nth-child(3) { animation-delay: .17s; border-width: 1px; border-color: rgb(167 139 250 / .55); box-shadow: 0 0 8px rgb(139 108 255 / .35), inset 0 0 10px rgb(139 108 255 / .16); }
+.wd b { position: absolute; left: 50%; top: 50%; width: 46px; height: 46px; margin: -23px 0 0 -23px; border-radius: 9999px; opacity: 0; transform: scale(.2);
+  background: radial-gradient(circle, rgb(165 243 252 / .55) 0%, rgb(34 211 238 / .22) 45%, transparent 72%);
+  animation: wd-core .5s ease-out forwards; }
+@keyframes wd-ring { 0% { transform: scale(.04); opacity: .95; } 18% { opacity: .85; } 65% { opacity: .35; } 100% { transform: scale(1); opacity: 0; } }
+@keyframes wd-core { 0% { transform: scale(.2); opacity: .9; } 100% { transform: scale(1.15); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { #wd-layer { display: none; } }
