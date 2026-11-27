@@ -271,3 +271,16 @@ export const contributorSignatures = pgTable("contributor_signatures", {
   updatedBy: uuid("updated_by").references(() => users.id),
   updatedAt: updatedAt(),
 });
+
+/* ---------- 17. contributor_hour_logs (daily working-hour log per contributor/device; independent of billing) ---------- */
+export const contributorHourLogs = pgTable("contributor_hour_logs", {
+  id: id(),
+  contributorId: uuid("contributor_id").notNull().references(() => contributors.id),
+  workDate: date("work_date").notNull(),
+  deviceName: varchar("device_name", { length: 120 }).notNull(),
+  hours: numeric("hours", { precision: 10, scale: 2 }).notNull(),
+  notes: text("notes"),
+  recordedBy: uuid("recorded_by").references(() => users.id),
+  createdAt: createdAt(),
+  updatedAt: updatedAt(),
+}, (t) => [index("chl_contributor_date_idx").on(t.contributorId, t.workDate), index("chl_date_idx").on(t.workDate)]);

@@ -3,6 +3,7 @@ import { Loader } from "@/components/Fx";
 import { useMemo, useState } from "react";
 import { Lock, Plus, Trash2 } from "lucide-react";
 import { Badge, Button, Card, Field, Input, PageHeader, Stat, api, cx } from "@/components/ui";
+import { HourLogModule } from "@/components/HourLog";
 import { FilterBar, hrs, today, toQuery, useApi, useLookups, type FilterState } from "@/components/hooks";
 
 type Row = {
@@ -12,7 +13,7 @@ type Row = {
 type Sheet = { rows: Row[]; totals: { records: number; target: string; actual: string; submitted: string } };
 type Draft = { sessions: string[]; submitted: string; remarks: string; touched: boolean; submittedTouched: boolean };
 
-export default function DailyHoursPage() {
+function BillingWorksheet() {
   const { projects, industries } = useLookups();
   const [date, setDate] = useState(today());
   const [f, setF] = useState<FilterState>({ from: "", to: "", projectId: "", industryId: "" });
@@ -55,7 +56,6 @@ export default function DailyHoursPage() {
 
   return (
     <div className="pb-24">
-      <PageHeader title="Daily Hours" subtitle="Enter each contributor's working hours. Add more than one session if needed; submitted hours can't exceed actual hours." />
       <div className="mb-3 max-w-xs"><Field label="Date"><Input type="date" max={today()} value={date} onChange={(e) => setDate(e.target.value)} /></Field></div>
       <FilterBar value={f} onChange={setF} projects={projects} industries={industries} showDates={false} />
 
@@ -125,6 +125,20 @@ export default function DailyHoursPage() {
           <Button disabled={!dirty.length || saving} onClick={save}>{saving ? "Saving…" : "Save hours"}</Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+export default function DailyHoursPage() {
+  const [tab, setTab] = useState<"log" | "sheet">("log");
+  const tabs = [["log", "Hours tracking"], ["sheet", "Billing worksheet"]] as const;
+  return (
+    <div>
+      <PageHeader title="Daily Hours" subtitle={tab === "log" ? "Track each contributor's daily working hours by device, with live daily and monthly totals." : "Enter each contributor's billable work per project and industry. These hours go on to client QC and payments."} />
+      <div className="mb-5 inline-flex rounded-lg border border-line bg-card-2 p-1" role="tablist">
+        {tabs.map(([k, l]) => <button key={k} role="tab" aria-selected={tab === k} onClick={() => setTab(k)} className={cx("h-9 rounded-md px-4 text-sm font-medium transition", tab === k ? "tab-active" : "tab-idle text-muted")}>{l}</button>)}
+      </div>
+      <div key={tab} className="page-enter">{tab === "log" ? <HourLogModule /> : <BillingWorksheet />}</div>
     </div>
   );
 }

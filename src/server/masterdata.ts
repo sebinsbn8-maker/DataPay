@@ -185,7 +185,8 @@ export async function deleteContributor(u: U, id: string, force = false) {
     if (force) purged = await purgeHistory(tx, "contributorId", id);
     else {
       const [w] = await tx.select({ id: s.dailyWorkRecords.id }).from(s.dailyWorkRecords).where(eq(s.dailyWorkRecords.contributorId, id)).limit(1);
-      if (w) throw new HttpError(409, "This contributor has recorded hours or QC, so they can't be deleted. Set them to Inactive instead.");
+      const [l] = await tx.select({ id: s.contributorHourLogs.id }).from(s.contributorHourLogs).where(eq(s.contributorHourLogs.contributorId, id)).limit(1);
+      if (w || l) throw new HttpError(409, "This contributor has recorded hours or QC, so they can't be deleted. Set them to Inactive instead.");
     }
     const asg = await tx.select({ id: s.projectContributors.id }).from(s.projectContributors).where(eq(s.projectContributors.contributorId, id));
     if (asg.length) await tx.delete(s.paymentRates).where(inArray(s.paymentRates.assignmentId, asg.map((x) => x.id)));
@@ -193,6 +194,7 @@ export async function deleteContributor(u: U, id: string, force = false) {
     // a linked login is switched off rather than deleted (it may be referenced by audit history)
     await tx.update(s.users).set({ isActive: false, contributorId: null, updatedAt: new Date() } as never).where(eq(s.users.contributorId, id));
     await tx.delete(s.contributorSignatures).where(eq(s.contributorSignatures.contributorId, id));
+    await tx.delete(s.contributorHourLogs).where(eq(s.contributorHourLogs.contributorId, id));
     await tx.delete(s.contributors).where(eq(s.contributors.id, id));
     await audit(tx as never, { userId: u.id, action: "DELETE", entity: "contributor", entityId: id, before: strip(before), note: force ? `FORCE: ${purged} daily records removed` : undefined });
     return { deleted: true };
